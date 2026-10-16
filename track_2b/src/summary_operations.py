@@ -19,13 +19,13 @@ def claim(request):
         row = conn.execute('SELECT * FROM npc_generation_reviews WHERE operation_key=?', (key,)).fetchone()
         if row:
             if row['epoch'] != epoch(conn) or json.loads(row['payload'])['request_input'] != request.model_dump():
-                raise HTTPException(409, '请求键已用于其他推演或世界已载入')
+                raise HTTPException(409, 'Request key was used for another simulation, or the world was reloaded')
             if row['state_token'] != token:
-                raise HTTPException(409, '世界已变化，请重新推演')
+                raise HTTPException(409, 'World state has changed; rerun the simulation')
             if row['status'] == 'complete':
                 return json.loads(row['result']), None
             if row['lease_until'] > time.time():
-                raise HTTPException(409, '推演正在进行，请勿重复提交')
+                raise HTTPException(409, 'Simulation is in progress; do not submit again')
             identifier = row['id']
             conn.execute('UPDATE npc_generation_reviews SET lease_until=? WHERE id=?', (lease, identifier))
         else:
@@ -40,7 +40,7 @@ def complete(conn, identifier, result):
     if identifier:
         row = conn.execute('SELECT lease_until,state_token FROM npc_generation_reviews WHERE id=?', (identifier[0],)).fetchone()
         if not row or row['lease_until'] != identifier[1] or row['state_token'] != state_token(conn):
-            raise HTTPException(409, '推演处理权或世界状态已变化，摘要未保存')
+            raise HTTPException(409, 'Simulation ownership or world state changed; summaries were not saved')
         conn.execute("UPDATE npc_generation_reviews SET status='complete',result=?,lease_until=0 WHERE id=?",
                      (encode(result), identifier[0]))
 

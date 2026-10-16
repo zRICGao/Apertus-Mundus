@@ -5,13 +5,13 @@ window.WorldAPI = (() => {
         try { return await fetch(path.startsWith(base + '/') ? path : base + path, options); }
         catch (error) {
             if (error.name !== 'TypeError') throw error;
-            throw new Error('无法连接本地游戏引擎，请确认后端正在运行，并通过服务地址打开页面。');
+            throw new Error('Cannot connect to the local game engine. Make sure the backend is running and open the page using its server address.');
         }
     }
     function responseError(response, data, text = '') {
         return new Error(typeof data?.detail === 'string' ? data.detail :
             typeof data?.message === 'string' ? data.message :
-            `HTTP ${response.status}：${text.slice(0, 200) || '游戏引擎请求失败，请重试。'}`);
+            `HTTP ${response.status}：${text.slice(0, 200) || 'Game engine request failed; please try again.'}`);
     }
     // Legacy callers still consume a Response; validate before they clear editor state.
     async function checkedRequest(path, options) {
@@ -20,7 +20,7 @@ window.WorldAPI = (() => {
         let data;
         try { data = JSON.parse(text); } catch { /* Non-JSON errors retain their HTTP status. */ }
         if (!response.ok || data?.status === 'error') throw responseError(response, data, text);
-        if (text && data === undefined) throw new Error('游戏引擎返回了无效的 JSON 响应，请重试。');
+        if (text && data === undefined) throw new Error('The game engine returned an invalid JSON response; try again.');
         return response;
     }
     async function json(path, body, method = body === undefined ? 'GET' : 'POST') {
@@ -31,11 +31,11 @@ window.WorldAPI = (() => {
         let data;
         try { data = JSON.parse(text); }
         catch {
-            throw new Error(response.ok ? '游戏引擎返回了无效的 JSON 响应。' :
-                `HTTP ${response.status}：${text.slice(0, 200) || '游戏引擎请求失败'}`);
+            throw new Error(response.ok ? 'The game engine returned an invalid JSON response.' :
+                `HTTP ${response.status}：${text.slice(0, 200) || 'Game engine request failed'}`);
         }
         if (!response.ok || data?.status === 'error') throw responseError(response, data, text);
-        if (data === null || typeof data !== 'object') throw new Error('游戏引擎返回了无效的 JSON 响应。');
+        if (data === null || typeof data !== 'object') throw new Error('The game engine returned an invalid JSON response.');
         return data;
     }
     async function stream(path, body, onText) {
@@ -48,7 +48,7 @@ window.WorldAPI = (() => {
             try { data = JSON.parse(text); } catch { /* Keep non-JSON HTTP errors readable. */ }
             throw responseError(response, data, text);
         }
-        if (!response.body) throw new Error('游戏引擎未返回流式内容，请重试。');
+        if (!response.body) throw new Error('The game engine did not return streamed content; try again.');
         const reader = response.body.getReader(), decoder = new TextDecoder();
         let buffer = '', text = '', completed = false;
         try {

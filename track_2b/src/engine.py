@@ -44,11 +44,11 @@ def validate_branches(parsed):
     if parsed.get("clarification"):
         question = parsed["clarification"].get("question")
         if not isinstance(question, str) or not question.strip():
-            raise ValueError("澄清问题无效")
+            raise ValueError("Invalid clarification question")
         return []
     branches = parsed.get("branches")
     if not isinstance(branches, list) or not 1 <= len(branches) <= 6:
-        raise ValueError("模型必须返回1至6个完整分支")
+        raise ValueError("The model must return 1 to 6 complete branches")
     return [Branch.model_validate(branch).model_dump() for branch in branches]
 
 
@@ -58,12 +58,12 @@ def validate_summaries(parsed):
     if parsed.get('clarification'):
         return branches
     if not 2 <= len(branches) <= 4:
-        raise ValueError('摘要必须包含2至4个分支')
+        raise ValueError('The summary must contain 2 to 4 branches')
     for branch in branches:
         if len(branch['node_content']) > 120:
-            raise ValueError('分支摘要不得超过120字符，请重新推演')
+            raise ValueError('Branch summary must not exceed 120 characters; regenerate')
         if len(branch['text']) > 40 or len(branch['node_name']) > 30:
-            raise ValueError('分支选项或标题过长')
+            raise ValueError('Branch option or title is too long')
         # Server-owned preparation/approval fields can never come from the model.
         for key in ('npc_review', 'npc_additions', 'review_decisions', 'spatial_context',
                     'preparation', 'phase', 'expanded_content', 'summary_contract'):
@@ -98,7 +98,7 @@ def normalize_branch_references(conn, branch, *, tolerant=False, timeline_id=Non
     player_refs = set()
     if tolerant:
         def is_player_placeholder(entity):
-            if label_key(entity.get('name', '')) not in {'player', 'player_id', 'playerid', 'pc', '玩家id'}:
+            if label_key(entity.get('name', '')) not in {'player', 'player_id', 'playerid', 'pc', 'playerid'}:
                 return False
             ref = entity.get('ref', 'new_npc')
             player_refs.add(label_key(ref))
@@ -131,10 +131,10 @@ def normalize_branch_references(conn, branch, *, tolerant=False, timeline_id=Non
                     value = change.get('char_name') or change.get('npc_name') or change.get('name')
                 if not value:
                     if key == 'entity_uid' and not (group == 'entity_changes' and change.get('new') is True):
-                        problem = '状态变更缺少对象'
+                        problem = 'State change is missing a target'
                     continue
                 if not isinstance(value, str):
-                    problem = f'引用「{value}」不是人物名称或实体标识，状态变更暂未执行'
+                    problem = f'Reference "{value}" is not a person name or entity identifier; the state change has not been applied'
                     break
                 if value in identities:
                     change[key] = value
@@ -146,7 +146,7 @@ def normalize_branch_references(conn, branch, *, tolerant=False, timeline_id=Non
                     change[key] = next(iter(matches))
                     continue
                 if matches:
-                    problem = f'名称「{value}」有歧义，状态变更暂未执行'
+                    problem = f'Name "{value}" is ambiguous; the state change has not been applied'
                     break
                 # A natural name already in the scene can become an ordinary NPC proposal.
                 # Opaque IDs and player placeholders never become invented characters.
@@ -159,11 +159,11 @@ def normalize_branch_references(conn, branch, *, tolerant=False, timeline_id=Non
                     while ref in identities:
                         ref += '_1'
                     branch.setdefault('new_entities', []).append({'ref': ref, 'name': value,
-                        'entity_type': 'npc', 'description': f'当前场景中称为「{value}」的人物'})
+                        'entity_type': 'npc', 'description': f'Person referred to as "{value}" in the current scene'})
                     register(ref, value, [])
                     change[key] = ref
                     continue
-                problem = f'暂无法确定「{value}」对应的人物或实体，状态变更暂未执行'
+                problem = f'Unable to identify "{value}" as a person or entity; the state change has not been applied'
                 break
             if problem:
                 if not tolerant:
@@ -196,7 +196,7 @@ def target_entity(conn, change, *, references=None, name_key="char_name"):
 
 def integer(value, label):
     if type(value) is not int or abs(value) > 1_000_000:
-        raise ValueError(f"{label} 必须为范围内的整数")
+        raise ValueError(f"{label} must be an integer within the allowed range")
     return value
 
 
@@ -211,18 +211,18 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
             event = conn.execute("SELECT id,payload,timeline_id FROM world_events WHERE operation_key=?", (f"branch:{node_id}",)).fetchone()
             if event:
                 if expected_timeline is not ... and event['timeline_id'] != expected_timeline:
-                    raise HTTPException(409, '该分支属于其他队伍')
+                    raise HTTPException(409, 'This branch belongs to another team')
                 return {**json.loads(event['payload']).get('result',{}), "status": "already_applied", "event_id": event["id"]}
-            return {"status": "skipped", "message": "无待执行分支"}
+            return {"status": "skipped", "message": "No pending branch to execute"}
         fx = json.loads(row["payload"])
         if expected_timeline is not ... and fx.get('timeline_id') != expected_timeline:
-            raise HTTPException(409, '该分支属于其他队伍')
+            raise HTTPException(409, 'This branch belongs to another team')
         token = state_token(conn)
         if (fx.get("state_token") and fx["state_token"] != token) or (expected_token and expected_token != token):
-            raise HTTPException(409, "世界状态已变化，请重新推演；该分支尚未执行")
+            raise HTTPException(409, "World state changed; regenerate. This branch was not executed")
         node = conn.execute("SELECT * FROM nodes WHERE id=?", (node_id,)).fetchone()
         if not node:
-            raise ValueError("分支节点不存在")
+            raise ValueError("Branch node does not exist")
         if fx.get('phase')!='EXPANDED' or not fx.get('expanded_content') or node['expanded_content']!=fx['expanded_content']:
             raise HTTPException(409,'Expand this candidate before confirming the scene')
         from npc_review import check_commit
@@ -232,7 +232,7 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
         team = None
         if timeline_id is not None:
             team = conn.execute('SELECT * FROM timelines WHERE id=?',(timeline_id,)).fetchone()
-            if not team or team['status']!='active': raise ValueError('队伍不存在或不在行动')
+            if not team or team['status']!='active': raise ValueError('Team does not exist or is inactive')
             members = {int(x) for x in team['char_ids'].split(',') if x.strip().isdigit()}
         operation_key = f"branch:{node_id}"
         event_id = record_event(conn, "branch_committed", fx["expanded_content"], fx, timeline_id, operation_key)
@@ -243,7 +243,7 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
             is_new = not npc.get('entity_uid')
             if npc.get("entity_uid"):
                 entity = resolve_entity(conn, uid=npc["entity_uid"])
-                if entity['entity_type']!='npc': raise ValueError('已有NPC引用指向其他类型实体')
+                if entity['entity_type']!='npc': raise ValueError('Existing NPC reference points to an entity of another type')
                 npc={**npc,'name':entity['name']}
                 uid = entity["uid"]
             else:
@@ -264,7 +264,7 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
         for entity in fx.get("new_entities", []):
             ref = entity.get("ref")
             if not ref or ref in references:
-                raise ValueError("新实体的临时引用必须唯一")
+                raise ValueError("New entity temporary references must be unique")
             references[ref] = create_entity(conn, name=entity["name"], entity_type=entity.get("entity_type", "item"),
                 state_desc=encode({"desc": entity.get("description", "")}), aliases=entity.get("aliases", []),
                 visibility=entity.get("visibility", "public"), location=entity.get("location", ""))
@@ -286,21 +286,21 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
             entity = target_entity(conn, change, references=references)
             char = conn.execute("SELECT * FROM characters WHERE entity_uid=?", (entity["uid"],)).fetchone()
             if not char:
-                raise ValueError("属性变更对象不是角色")
+                raise ValueError("The stat change target is not a character")
             if char['role']=='PC' and team and char['id'] not in members:
-                raise ValueError('无法变更另一队伍的玩家属性')
-            hp_delta, san_delta = integer(change.get("hp_delta", 0), "HP变化"), integer(change.get("san_delta", 0), "SAN变化")
+                raise ValueError('Cannot change player stats belonging to another team')
+            hp_delta, san_delta = integer(change.get("hp_delta", 0), "HP change"), integer(change.get("san_delta", 0), "SAN change")
             inv = char["inventory"] or ""
             add, remove = change.get("inventory_append", ""), change.get("inventory_remove", "")
             if fx.get("action_type") == "dialogue" and (hp_delta or add or remove):
-                raise ValueError("对话分支不可改变HP或物品")
+                raise ValueError("Dialogue branches cannot modify HP or items")
             if add:
                 inv = ", ".join(filter(None, [inv, add]))
             if remove:
                 # Exact item matching; a short name must not remove several items.
                 parts = [p.strip() for p in inv.replace("，", ",").split(",") if p.strip()]
                 if parts.count(remove) != 1:
-                    raise ValueError(f"物品「{remove}」不存在或有歧义，请澄清")
+                    raise ValueError(f'Item "{remove}" does not exist or is ambiguous; clarification is required')
                 parts.remove(remove)
                 inv = ", ".join(parts)
             hp, san = max(0, char["hp"] + hp_delta), max(0, char["san"] + san_delta)
@@ -314,7 +314,7 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
             emo = sd.get("emotion", {})
             tick_emotion_decay(emo)
             for key in ("trust", "fear", "irritation"):
-                delta = integer(change.get(key, 0), "情绪变化")
+                delta = integer(change.get(key, 0), "Emotion change")
                 if delta:
                     apply_emotion_delta(emo, key, delta)
             sd["emotion"] = emo
@@ -324,7 +324,7 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
             entity = target_entity(conn, change, references=references, name_key="npc_name")
             content = change.get("memory", "")
             if not isinstance(content, str):
-                raise ValueError("NPC记忆必须为文本")
+                raise ValueError("NPC memory must be text")
             if content:
                 conn.execute("INSERT INTO entity_memories(entity_uid,content,timeline_id,visibility,source_event_id) VALUES(?,?,?,?,?)",
                     (entity["uid"], content[:500], timeline_id, f"entity:{entity['uid']}", event_id))
@@ -332,7 +332,7 @@ def apply_branch(conn, node_id, expected_token=None, expected_timeline=..., conf
         map_result = {"moved_to": None, "new_room": None, "unlocked_edge": None, "errors": []}
         if fx.get("map_actions"):
             if fx.get("action_type") == "dialogue":
-                raise ValueError("对话不可改变空间")
+                raise ValueError("Dialogue cannot change spatial state")
             map_result = _process_map_actions(conn, fx, _get_current_room_id(conn, timeline_id), timeline_id=timeline_id,scene_node_id=node_id)
             if map_result["errors"]:
                 raise ValueError("；".join(map_result["errors"]))

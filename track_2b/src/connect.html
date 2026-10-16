@@ -1,60 +1,60 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10253e">
   <meta name="referrer" content="no-referrer">
-  <title>选择使用方式 — Apertus Mundus</title>
+  <title>Choose How to Connect — Apertus Mundus</title>
   <link rel="stylesheet" href="/device_connect.css">
   <script src="/frontend_vendor/vue.global.prod.js"></script>
   <script src="/frontend_api.js"></script>
 </head>
 <body>
 <div id="connect" v-cloak>
-  <header><a class="wordmark" href="/index.html">Apertus Mundus<span>.</span></a><a class="header-link" href="/index.html">返回工作台</a></header>
+  <header><a class="wordmark" href="/index.html">Apertus Mundus<span>.</span></a><a class="header-link" href="/index.html">Back to Workbench</a></header>
   <main>
     <section class="introduction">
-      <h1>同一个世界，<br>随你切换设备<span>。</span></h1>
-      <p>在电脑主持，在手机查看或接续操作。<br>场景与角色共享，无需来回导出存档。</p>
-      <a class="desktop-action" href="/index.html?resume=1">在这台设备打开工作台 <span aria-hidden="true">↗</span></a>
+      <h1>One world,<br>across all your devices<span>.</span></h1>
+      <p>Host on your computer, view or continue on your phone.<br>Scenes and characters are shared, without exporting save files between devices.</p>
+      <a class="desktop-action" href="/index.html?resume=1">Open Workbench on This Device <span aria-hidden="true">↗</span></a>
       <div class="sync-description">
-        <h2>电脑与手机，一起在线</h2>
-        <p>已保存的场景、队伍状态与剧情进度自动同步，通常在 3 秒内更新。正在编辑或推演时暂停接收，完成后再接续同步。</p>
-        <p>草稿、输入框与滚动位置保留在各自设备。两端同时修改同一场景时，系统会拦截旧版本保存。</p>
+        <h2>Computer and Phone, Connected</h2>
+        <p>Saved scenes, party status, and story progress sync automatically, usually within 3 seconds. Incoming sync pauses during editing or simulation and resumes afterward.</p>
+        <p>Drafts, input fields, and scroll positions stay on each device. If both devices edit the same scene, the system blocks saves based on outdated versions.</p>
       </div>
     </section>
     <section class="connection" aria-labelledby="connection-title">
-      <h2 id="connection-title">用手机连接</h2>
-      <p class="lead" v-if="!containerLocal">手机与电脑连接同一个 Wi-Fi，扫码即可进入。</p>
-      <p v-if="loading" role="status">正在读取连接状态…</p>
+      <h2 id="connection-title">Connect Your Phone</h2>
+      <p class="lead" v-if="!containerLocal">Connect your phone and computer to the same Wi-Fi network, then scan the code to open the session.</p>
+      <p v-if="loading" role="status">Checking connection status…</p>
       <template v-else-if="containerLocal">
-        <div class="notice">当前只开放本机工作台。手机连接请使用桌面启动方式。</div>
-        <a class="primary" href="/index.html?resume=1">进入工作台</a>
+        <div class="notice">Only the local workbench is available in this mode. To connect a phone, launch the desktop version.</div>
+        <a class="primary" href="/index.html?resume=1">Enter Workbench</a>
       </template>
       <template v-else-if="!local">
-        <div class="notice">连接管理需要在运行服务的电脑上打开。你可以直接进入这台设备的工作台。</div>
-        <a class="primary" href="/index.html?resume=1">进入工作台</a>
+        <div class="notice">Connection management must be opened on the computer running the server. You can open the workbench directly on this device.</div>
+        <a class="primary" href="/index.html?resume=1">Enter Workbench</a>
       </template>
       <template v-else-if="!enabled">
-        <div class="connection-off"><svg aria-hidden="true" width="40" height="48" viewBox="0 0 40 48" fill="none"><rect x="9" y="2" width="24" height="44" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M18 7h6M18 40h6M2 22h18m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg><p>开启后生成本次连接的专属二维码。<br>关闭连接或重启服务后，旧二维码失效。</p></div>
-        <button class="primary" @click="enable" :disabled="busy">{{busy ? '正在开启…' : '开启手机连接与同步'}}</button>
+        <div class="connection-off"><svg aria-hidden="true" width="40" height="48" viewBox="0 0 40 48" fill="none"><rect x="9" y="2" width="24" height="44" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M18 7h6M18 40h6M2 22h18m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg><p>Enabling this generates a QR code for this connection.<br>The old QR code becomes invalid when the connection is disabled or the server restarts.</p></div>
+        <button class="primary" @click="enable" :disabled="busy">{{busy ? 'Enabling…' : 'Enable Phone Connection and Sync'}}</button>
       </template>
       <template v-else>
-        <div class="connection-status" role="status"><span class="status-dot"></span>连接已开启 <span>{{count ? count+' 个在线界面' : '等待手机扫码'}}</span></div>
-        <fieldset class="view-choice"><legend>手机打开什么？</legend><label><input type="radio" value="workbench" v-model="view" @change="refreshLink">GM 工作台</label><label><input type="radio" value="phone" v-model="view" @change="refreshLink">NPC 通讯</label></fieldset>
-        <div class="qr-frame"><img v-if="url" :src="qrUrl" width="208" height="208" alt="用手机相机扫描此二维码连接 Apertus Mundus"><p v-else>尚未找到可用地址</p></div>
-        <p class="qr-caption">{{view==='workbench' ? '扫码后自动适配手机，接续当前会话' : '扫码打开独立的 NPC 对话界面'}}</p>
-        <label v-if="addresses.length>1" class="address-choice">电脑网络地址<select v-model="address" @change="refreshLink"><option v-for="host in addresses" :key="host">{{host}}</option></select></label>
-        <div class="link-copy"><input aria-label="手机连接地址" :value="url" readonly @focus="$event.target.select()"><button @click="copyLink" :disabled="!url">{{copyMessage || '复制链接'}}</button></div>
-        <a class="local-open" href="/index.html?resume=1" target="_blank" rel="noopener">在电脑上同时打开工作台 <span aria-hidden="true">↗</span></a>
-        <button class="disconnect" @click="disable" :disabled="busy">关闭手机连接</button>
+        <div class="connection-status" role="status"><span class="status-dot"></span>Connection enabled <span>{{count ? count+'connected interfaces' : 'Waiting for phone to scan'}}</span></div>
+        <fieldset class="view-choice"><legend>What should open on your phone?</legend><label><input type="radio" value="workbench" v-model="view" @change="refreshLink">GM Workbench</label><label><input type="radio" value="phone" v-model="view" @change="refreshLink">NPC Messaging</label></fieldset>
+        <div class="qr-frame"><img v-if="url" :src="qrUrl" width="208" height="208" alt="Scan this QR code with your phone camera to connect to Apertus Mundus"><p v-else>No available address found</p></div>
+        <p class="qr-caption">{{view==='workbench' ? 'Scan to continue the current session in a phone-friendly view' : 'Scan to open a separate NPC chat interface'}}</p>
+        <label v-if="addresses.length>1" class="address-choice">Computer network address<select v-model="address" @change="refreshLink"><option v-for="host in addresses" :key="host">{{host}}</option></select></label>
+        <div class="link-copy"><input aria-label="Phone connection URL" :value="url" readonly @focus="$event.target.select()"><button @click="copyLink" :disabled="!url">{{copyMessage || 'Copy Link'}}</button></div>
+        <a class="local-open" href="/index.html?resume=1" target="_blank" rel="noopener">Open Workbench on Computer Too <span aria-hidden="true">↗</span></a>
+        <button class="disconnect" @click="disable" :disabled="busy">Disable Phone Connection</button>
       </template>
       <p v-if="error" class="error" role="alert">{{error}}</p>
-      <details><summary>扫码后打不开？</summary><p>确认两台设备连接同一个 Wi-Fi，电脑服务保持运行。若 Windows 弹出提示，允许 Python 在你的私人网络通信。公共 Wi-Fi 可能禁止设备互访；可让电脑连接手机热点后重新开启连接。</p><p>若服务是用旧的仅本机命令启动，请关闭它，双击「启动 Apertus Mundus.cmd」重新启动。</p></details>
+      <details><summary>Cannot open the page after scanning?</summary><p>Make sure both devices use the same Wi-Fi network and the server is still running. If Windows prompts you, allow Python to communicate on your private network. Public Wi-Fi networks may block device-to-device connections; try connecting your computer to your phone hotspot and re-enabling the connection.</p><p>If the server was started using the older local-only command, stop it and relaunch it using the desktop start script.</p></details>
     </section>
   </main>
-  <footer>故事由你推进，设备由你选择。</footer>
+  <footer>You drive the story. You choose the device.</footer>
 </div>
 <script>
 Vue.createApp({
@@ -76,8 +76,8 @@ Vue.createApp({
     async function enable() {busy.value=true;error.value='';try{await WorldAPI.json('/api/devices/enable',{});address.value='';await refreshLink();}catch(e){error.value=e.message;}finally{busy.value=false;}}
     async function disable() {busy.value=true;try{await WorldAPI.json('/api/devices/disable',{});enabled.value=false;url.value='';address.value='';await refreshLink();}catch(e){error.value=e.message;}finally{busy.value=false;}}
     async function copyLink() {
-      try{await navigator.clipboard.writeText(url.value);copyMessage.value='已复制';}
-      catch{document.querySelector('.link-copy input').focus();document.querySelector('.link-copy input').select();copyMessage.value='请长按或 Ctrl+C';}
+      try{await navigator.clipboard.writeText(url.value);copyMessage.value='Copied';}
+      catch{document.querySelector('.link-copy input').focus();document.querySelector('.link-copy input').select();copyMessage.value='Long-press or press Ctrl+C';}
       clearTimeout(copyTimer);copyTimer=setTimeout(()=>copyMessage.value='',4000);
     }
     onMounted(async()=>{

@@ -1,9 +1,38 @@
 {
   "map_rooms": [
-    {"id": 1, "map_id": 1, "label": "灯塔门厅", "x": 0, "y": 0, "description": "有控制台、维修记录和通往灯室的楼梯。", "state": "visited", "node_id": 1, "floor": 1},
-    {"id": 2, "map_id": 1, "label": "灯室", "x": 180, "y": 0, "description": "楼上的灯光设备室，进入需要灯室钥匙。", "state": "discovered", "floor": 2}
+    {
+      "id": 1,
+      "map_id": 1,
+      "label": "Lighthouse foyer",
+      "x": 0,
+      "y": 0,
+      "description": "Contains a console, maintenance records and stairs to the lantern room.",
+      "state": "visited",
+      "node_id": 1,
+      "floor": 1
+    },
+    {
+      "id": 2,
+      "map_id": 1,
+      "label": "Lantern room",
+      "x": 180,
+      "y": 0,
+      "description": "The upstairs room housing the light; entry requires the Lantern room key.",
+      "state": "discovered",
+      "floor": 2
+    }
   ],
   "map_edges": [
-    {"id": 1, "map_id": 1, "from_id": 1, "to_id": 2, "label": "灯室楼梯", "locked": 1, "key_item": "灯室钥匙", "edge_type": "stairs", "discovered": 1}
+    {
+      "id": 1,
+      "map_id": 1,
+      "from_id": 1,
+      "to_id": 2,
+      "label": "Lantern room stairs",
+      "locked": 1,
+      "key_item": "Lantern room key",
+      "edge_type": "stairs",
+      "discovered": 1
+    }
   ]
 }

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from providers import generation, Settings, ProviderError
 
-config_router = APIRouter(tags=["模型配置"])
+config_router = APIRouter(tags=["Model Configuration"])
 _base_dir = ""
 _reload_rag = None
 
@@ -75,29 +75,29 @@ def test_retrieval_connection():
     for kind, enabled, model in (('embedding',settings.embedding_enabled,settings.embedding_model),
                                  ('rerank',settings.rerank_enabled,settings.rerank_model)):
         started=time.perf_counter()
-        result={'enabled':enabled,'model':model,'status':'disabled','message':'已关闭'}
+        result={'enabled':enabled,'model':model,'status':'disabled','message':'Disabled'}
         results[kind]=result
         if not enabled: continue
         ready=(bool(settings.embedding_url and (settings.embedding_key or urlsplit(settings.embedding_url).hostname in
                {'localhost','127.0.0.1','::1'})) if kind=='embedding' else configured(settings))
         if not ready:
-            result.update(status='unconfigured',message='已开启，需配置服务地址和访问凭据')
+            result.update(status='unconfigured',message='Enabled; service URL and credentials must be configured')
             continue
         try:
             if kind=='embedding':
                 with OpenAI(base_url=settings.embedding_url,api_key=settings.embedding_key or 'local',
                             timeout=15,max_retries=0) as client:
-                    response=client.embeddings.create(model=model,input=['连接检查：钟楼旁有一间图书馆。'])
+                    response=client.embeddings.create(model=model,input=['Connection test: There is a library next to the clock tower.'])
                 vectors=[row.embedding for row in response.data]
                 if not complete_vectors(vectors,1): raise ValueError('invalid_vectors')
                 result['dimensions']=len(vectors[0])
             else:
-                scores,_=request_scores(settings,'图书馆在哪里？',['图书馆在钟楼旁。','海边有一艘船。'])
+                scores,_=request_scores(settings,'Where is the library?',['The library is next to the clock tower.','There is a boat by the sea.'])
                 if len(scores)!=2: raise ValueError('incomplete_scores')
-            result.update(status='ok',message='连接和实际推理均正常')
+            result.update(status='ok',message='Connection and inference both work correctly')
         except Exception as exc:
             error=provider_error(exc,settings.embedding_url if kind=='embedding' else settings.rerank_base_url)
-            result.update(status='error',message=str(error) if isinstance(error,ProviderError) else '服务返回无效结果，请检查地址、模型和凭据')
+            result.update(status='error',message=str(error) if isinstance(error,ProviderError) else 'Service returned an invalid result; check the URL, model, and credentials')
         result['latency_ms']=round((time.perf_counter()-started)*1000)
     ok=all(r['status']=='ok' for r in results.values())
     return {'status':'success','ready':ok,'services':results}
@@ -140,30 +140,30 @@ def settings_update(req: ProviderSettingsRequest):
         "rerank_model":"rerank_model", "rerank_timeout":"rerank_timeout",
         "apertus_json_mode": "json_mode"}
     if not updates:
-        raise HTTPException(422, "没有提供配置")
+        raise HTTPException(422, "No configuration provided")
     for key, value in updates.items():
         if key == 'apertus_base_url' and not value.strip():
-            raise HTTPException(422, 'Apertus 服务地址不能为空')
+            raise HTTPException(422, 'Apertus service URL cannot be empty')
         if isinstance(value, str) and any(c in value for c in "\r\n\0"):
-            raise HTTPException(422, "配置不可包含换行")
+            raise HTTPException(422, "Configuration must not contain line breaks")
         if key.endswith("base_url") and value and not value.startswith(("http://", "https://")):
-            raise HTTPException(422, "服务地址必须为完整HTTP地址")
+            raise HTTPException(422, "Service URL must be a complete HTTP URL")
         if key in {"apertus_model", "apertus_8b_model", "embedding_model", "rerank_model"} and not value.strip():
-            raise HTTPException(422, "模型名称不能为空")
+            raise HTTPException(422, "Model name cannot be empty")
         if key=='rerank_timeout' and not 0.1<=value<=30:
-            raise HTTPException(422,'重排超时需在0.1至30秒之间')
+            raise HTTPException(422,'Rerank timeout must be between 0.1 and 30 seconds')
     new = replace(generation.settings, **{mapping[k]: v for k, v in updates.items()})
     if new.rerank_enabled:
         from urllib.parse import urlsplit
         try:address=urlsplit(new.rerank_base_url)
-        except ValueError as exc:raise HTTPException(422,'重排服务地址格式无效') from exc
+        except ValueError as exc:raise HTTPException(422,'Invalid rerank service URL format') from exc
         if address.scheme not in ('http','https') or not address.hostname or address.username or address.password or address.query or address.fragment:
-            raise HTTPException(422,'启用重排需要独立的完整HTTP服务地址，地址不可含凭据或查询参数')
+            raise HTTPException(422,'Enabling reranking requires a separate, complete HTTP service URL without credentials or query parameters')
     if new.decision_provider not in {"apertus", "apertus-8b", "jev", "kev"}:
-        raise HTTPException(422, "未知决策模型")
+        raise HTTPException(422, "Unknown decision model")
     from decision_contracts import FORMATS
     if new.decision_response_format not in FORMATS:
-        raise HTTPException(422, '未知决策输出格式')
+        raise HTTPException(422, 'Unknown decision output format')
     from runtime_config import settings_file, LLM_ALIASES, normalize_layer
     env_file = settings_file(_base_dir)
     env_file.parent.mkdir(parents=True, exist_ok=True)

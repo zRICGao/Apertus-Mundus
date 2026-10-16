@@ -1,9 +1,9 @@
 from database import connect_db, atomic
 from providers import generation, parse_object
 """
-APERTUS-MUNDUS 引擎 — 地图系统模块 (map.py)
-独立的 FastAPI APIRouter，包含地图的全部数据模型、数据库操作、REST API 和辅助函数。
-由 main.py 通过 app.include_router(map_router) 挂载。
+APERTUS-MUNDUS engine — map system module (map.py)
+Independent FastAPI APIRouter with all map data models, database operations, REST APIs and helper functions.
+Mounted by main.py via app.include_router(map_router).
 """
 
 import fastapi
@@ -14,13 +14,13 @@ import json
 import os
 
 # ---------------------------------------------------------
-# Router 实例（main.py 中 include_router 时无需额外 prefix）
+# Router instance (no extra prefix needed when including it in main.py)
 # ---------------------------------------------------------
-map_router = APIRouter(tags=["地图系统"])
+map_router = APIRouter(tags=["Map System"])
 
 
 # ---------------------------------------------------------
-# 数据库连接（由 main.py 在启动时注入）
+# Database connection (injected by main.py at startup)
 # ---------------------------------------------------------
 from contextlib import contextmanager
 from logger import get_logger
@@ -30,7 +30,7 @@ _log = get_logger("map")
 _db_file: str = ""
 
 def set_db_file(path: str):
-    """由 main.py 启动时调用，注入数据库路径。"""
+    """Called at main.py startup to inject the database path."""
     global _db_file
     _db_file = path
 
@@ -51,17 +51,17 @@ def safe_db():
 
 
 # ---------------------------------------------------------
-# 数据库表初始化
+# Database table initialization
 # ---------------------------------------------------------
 def init_map_tables():
-    """创建地图相关的数据库表（幂等）。由 main.py 的 init_db() 调用。"""
+    """Create map-related database tables idempotently; called by init_db() in main.py."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute('''CREATE TABLE IF NOT EXISTS map_rooms (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         map_id      INTEGER NOT NULL DEFAULT 1,
-        label       TEXT    NOT NULL DEFAULT '未命名',
+        label       TEXT    NOT NULL DEFAULT 'Untitled',
         x           REAL    NOT NULL DEFAULT 0,
         y           REAL    NOT NULL DEFAULT 0,
         w           REAL    NOT NULL DEFAULT 120,
@@ -86,7 +86,7 @@ def init_map_tables():
         FOREIGN KEY(to_id)   REFERENCES map_rooms(id) ON DELETE CASCADE
     )''')
 
-    # 平滑升级
+    # Smooth migration
     try: cursor.execute("ALTER TABLE map_rooms ADD COLUMN floor INTEGER NOT NULL DEFAULT 1")
     except sqlite3.OperationalError: pass
     try: cursor.execute("ALTER TABLE map_edges ADD COLUMN edge_type TEXT NOT NULL DEFAULT 'normal'")
@@ -101,11 +101,11 @@ def init_map_tables():
 
 
 # ---------------------------------------------------------
-# Pydantic 数据模型
+# Pydantic data models
 # ---------------------------------------------------------
 class MapRoomCreateRequest(BaseModel):
     map_id:      int    = 1
-    label:       str    = "未命名"
+    label:       str    = "Untitled"
     x:           float  = 0
     y:           float  = 0
     w:           float  = 120
@@ -152,7 +152,7 @@ class MapEdgeUpdateRequest(BaseModel):
     expected_token: str | None = None
 
 class MapAutoRoomRequest(BaseModel):
-    """推演完成后自动生长地图用"""
+    """Used to grow the map automatically after simulation"""
     map_id:         int
     parent_room_id: int
     label:          str
@@ -168,13 +168,13 @@ class MapAutoRoomRequest(BaseModel):
 
 
 # ---------------------------------------------------------
-# 辅助函数（供 main.py 的 AI 推演上下文调用）
+# Helper functions (used by main.py to build AI simulation context)
 # ---------------------------------------------------------
 def get_map_context(conn, room_id: int | None, query: str = '') -> str:
     """
-    读取当前房间及其相邻房间，生成供 AI 推演使用的空间感知文本。
-    room_id 为 None 或房间不存在时返回空字符串（零影响）。
-    支持多楼层：跨楼层连接标注楼层变化方向。
+    Read the current room and its neighboring rooms; build spatial context for AI simulation.
+    If room_id is None or the room does not exist, return an empty string (no effect).
+    Multi-floor support: cross-floor connections indicate vertical direction.
     """
     if not room_id:
         return ""
@@ -183,9 +183,9 @@ def get_map_context(conn, room_id: int | None, query: str = '') -> str:
         return ""
 
     floor = room["floor"] if "floor" in room.keys() else 1
-    lines = [f"当前位置：[room_id={room['id']},map_id={room['map_id']}] {room['label']}（第{floor}层，{room['description'] or '无额外描述'}）"]
+    lines = [f"Current location: [room_id={room['id']},map_id={room['map_id']}] {room['label']} (floor {floor}, {room['description'] or 'no extra description'})"]
 
-    # 相邻房间（双向边），含 edge_type
+    # Neighboring rooms (bidirectional edges), including edge_type
     edges = conn.execute(
         "SELECT me.*, "
         "  CASE WHEN me.from_id=? THEN me.to_id ELSE me.from_id END AS neighbor_id "
@@ -205,21 +205,21 @@ def get_map_context(conn, room_id: int | None, query: str = '') -> str:
 
         if not e['discovered']:
             continue  # Unrevealed connections are available to the GM review, not as known exits.
-        lock_note  = f"（上锁，需：{e['key_item']}）" if e["locked"] else ""
+        lock_note  = f"(locked, requires: {e['key_item']})" if e["locked"] else ""
         dir_note   = f"{e['label']}→" if e["label"] else "→"
-        state_map  = {"unknown": "尚未发现", "discovered": "已发现未进入", "explored": "已探索",
-                      "locked": "封锁", "active": "当前"}
+        state_map  = {"unknown": "Not discovered", "discovered": "Discovered but not entered", "explored": "Explored",
+                      "locked": "Blocked", "active": "Current"}
         nb_state   = state_map.get(nb["state"], nb["state"])
         nb_floor   = nb["floor"] if "floor" in nb.keys() else 1
 
         etype = e["edge_type"] if "edge_type" in e.keys() else "normal"
         if nb_floor != floor:
-            direction = "上" if nb_floor > floor else "下"
+            direction = "up" if nb_floor > floor else "down"
             type_label = {
-                "stairs":   f"楼梯（{direction}至第{nb_floor}层）",
-                "elevator": f"电梯（{direction}至第{nb_floor}层）",
-                "portal":   f"传送门（→第{nb_floor}层）",
-            }.get(etype, f"通道（{direction}至第{nb_floor}层）")
+                "stairs":   f"Stairs ({direction} to floor {nb_floor})",
+                "elevator": f"Elevator ({direction} to floor {nb_floor})",
+                "portal":   f"Portal (to floor {nb_floor})",
+            }.get(etype, f"Passage ({direction} to floor {nb_floor})")
             neighbor_descs.append(
                 f"[room_id={nb['id']},edge_id={e['id']}] {dir_note}{nb['label']}[{type_label}]（{nb_state}）{lock_note}"
             )
@@ -229,11 +229,11 @@ def get_map_context(conn, room_id: int | None, query: str = '') -> str:
             )
 
     if neighbor_descs:
-        lines.append("可通往：" + " / ".join(neighbor_descs))
+        lines.append("Accessible destinations: " + " / ".join(neighbor_descs))
     else:
-        lines.append("尚无已发现的登记通道；不能据此认定为死胡同。未登记的新区域必须审核。")
+        lines.append("No discovered registered passages; this does not prove the area is a dead end. Unregistered new areas require review.")
 
-    # 同一地图同一楼层的已知状态
+    # Known states on the same floor of the same map
     known = conn.execute(
         "SELECT id,label,description,aliases,state,floor FROM map_rooms "
         "WHERE map_id=? AND id!=? AND state!='unknown' ORDER BY floor, id",
@@ -249,10 +249,10 @@ def get_map_context(conn, room_id: int | None, query: str = '') -> str:
             grouped.setdefault(fl, []).append(f"[room_id={r['id']}] {r['label']}[{r['state']}]")
         parts = []
         for fl in sorted(grouped):
-            prefix = f"第{fl}层：" if len(grouped) > 1 else ""
+            prefix = f"Floor {fl}: " if len(grouped) > 1 else ""
             parts.append(prefix + " / ".join(grouped[fl]))
-        lines.append("已知地图状态：" + " | ".join(parts))
-        lines.append('以上为相关地点摘要；未列出的地点不代表不存在，新增区域会另行检索完整地图审核。')
+        lines.append("Known map status: " + " | ".join(parts))
+        lines.append('These are relevant location summaries; omitted locations may still exist. New areas will be checked against the full map during review.')
 
     return "\n".join(lines)
 
@@ -265,7 +265,7 @@ def auto_place_room(conn, map_id: int, parent_room_id: int,
     floor = parent['floor'] if floor is None else floor
     validate_room({'label': label, 'floor': floor, 'map_id': map_id, 'aliases': aliases or []})
     if edge_type not in EDGE_TYPES or (floor != parent['floor'] and edge_type == 'normal'):
-        raise ValueError('跨楼层区域须明确指定楼梯、电梯或传送门')
+        raise ValueError('Cross-floor areas must explicitly use stairs, an elevator, or a portal')
     x, y = placement(conn, map_id, parent_room_id, floor)
     uid = conn.execute('INSERT INTO map_rooms(map_id,label,x,y,w,h,description,state,node_id,floor,aliases) '
                        'VALUES(?,?,?,?,120,80,?,?,?,?,?)',
@@ -278,10 +278,10 @@ def auto_place_room(conn, map_id: int, parent_room_id: int,
 
 
 # ---------------------------------------------------------
-# 地图数据导入 / 导出（独立文件 map.json）
+# Map import/export (separate map.json file)
 # ---------------------------------------------------------
 def export_map_data(conn) -> dict:
-    """导出地图数据为字典，供独立 map.json 文件保存。"""
+    """Export map data as a dictionary for separate map.json storage."""
     rooms = [dict(r) for r in conn.execute(
         "SELECT * FROM map_rooms ORDER BY floor, id"
     ).fetchall()]
@@ -295,40 +295,40 @@ def export_map_data(conn) -> dict:
 def validate_import(conn, data):
     from spatial import validate_room, EDGE_TYPES
     if not isinstance(data,dict) or not isinstance(data.get('map_rooms'),list) or not isinstance(data.get('map_edges'),list):
-        raise ValueError('地图文件必须包含房间和通道列表')
+        raise ValueError('Map file must contain room and passage lists')
     rooms, edges, ids, pairs = [], [], {}, set()
     for source in data['map_rooms']:
         if not isinstance(source,dict) or type(source.get('id')) is not int or source['id'] <= 0:
-            raise ValueError('导入地点必须有有效的唯一ID')
+            raise ValueError('Imported locations must have valid unique IDs')
         room = MapRoomCreateRequest.model_validate({**source,'aliases':json.loads(source.get('aliases','[]')) if isinstance(source.get('aliases',[]),str) else source.get('aliases',[])}).model_dump()
         room['id'] = source['id']; validate_room(room)
-        if room['id'] in ids: raise ValueError('地图包含重复地点ID')
+        if room['id'] in ids: raise ValueError('Map contains duplicate location IDs')
         if room.get('node_id') and not conn.execute('SELECT id FROM nodes WHERE id=?',(room['node_id'],)).fetchone():
-            raise ValueError('导入地图引用了不存在的剧情节点')
+            raise ValueError('Imported map references a nonexistent scene node')
         ids[room['id']] = room; rooms.append(room)
     edge_ids=set()
     for source in data['map_edges']:
         edge = MapEdgeCreateRequest.model_validate(source).model_dump()
         uid=source.get('id')
         if uid is not None and (type(uid) is not int or uid<=0 or uid in edge_ids):
-            raise ValueError('地图包含无效或重复通道ID')
+            raise ValueError('Map has invalid or duplicate passage IDs')
         edge_ids.add(uid)
         a,b=ids.get(edge['from_id']),ids.get(edge['to_id'])
         if not a or not b or a['id']==b['id'] or a['map_id']!=edge['map_id'] or b['map_id']!=edge['map_id']:
-            raise ValueError('通道端点不存在、重复或不属于同一地图')
+            raise ValueError('Passage endpoints do not exist, are duplicates, or are on different maps')
         if edge['edge_type'] not in EDGE_TYPES or (a['floor']!=b['floor'] and edge['edge_type']=='normal'):
-            raise ValueError('跨楼层通道须明确指定楼梯、电梯或传送门')
+            raise ValueError('Cross-floor passages must use stairs, an elevator, or a portal')
         pair=tuple(sorted((a['id'],b['id'])))
-        if pair in pairs: raise ValueError('地图包含重复通道')
+        if pair in pairs: raise ValueError('Map contains duplicate passages')
         pairs.add(pair); edge['id']=uid; edges.append(edge)
     bindings=data.get('scene_locations',[])
-    if not isinstance(bindings,list): raise ValueError('剧情地点绑定必须为列表')
+    if not isinstance(bindings,list): raise ValueError('Scene-to-location bindings must be a list')
     seen=set()
     for binding in bindings:
         if not isinstance(binding,dict) or type(binding.get('node_id')) is not int or binding.get('room_id') not in ids:
-            raise ValueError('剧情地点绑定引用无效')
+            raise ValueError('Invalid scene-to-location binding reference')
         if binding['node_id'] in seen or not conn.execute('SELECT id FROM nodes WHERE id=?',(binding['node_id'],)).fetchone():
-            raise ValueError('剧情地点绑定重复或剧情节点不存在')
+            raise ValueError('Duplicate scene-to-location binding or nonexistent scene node')
         seen.add(binding['node_id'])
     return rooms,edges
 
@@ -363,7 +363,7 @@ def editing(expected_token=None):
     try:
         with safe_db() as conn, atomic(conn):
             if expected_token and expected_token != state_token(conn):
-                raise fastapi.HTTPException(409,'地图已变化，请刷新后重试；本次修改未保存')
+                raise fastapi.HTTPException(409,'Map changed; refresh and try again. This edit was not saved')
             yield conn
     except (ValueError,KeyError,TypeError,sqlite3.IntegrityError) as exc:
         raise fastapi.HTTPException(422,str(exc)) from exc
@@ -403,7 +403,7 @@ def map_update_room(room_id:int,req:MapRoomUpdateRequest):
             for edge in conn.execute('SELECT * FROM map_edges WHERE from_id=? OR to_id=?',(room_id,room_id)):
                 other=room_record(conn,edge['to_id'] if edge['from_id']==room_id else edge['from_id'])
                 if other['floor']!=req.floor and edge['edge_type']=='normal':
-                    raise ValueError('请先把跨楼层连接改为楼梯、电梯或传送门')
+                    raise ValueError('Change cross-floor links to stairs, an elevator or a portal first')
         labels=aliases(data['aliases'])
         if req.label!=old['label'] and old['label'] not in labels: labels.append(old['label'])
         conn.execute('UPDATE map_rooms SET label=?,x=?,y=?,w=?,h=?,description=?,state=?,color=?,node_id=?,floor=?,aliases=? WHERE id=?',
@@ -445,7 +445,7 @@ def map_update_edge(edge_id:int,req:MapEdgeUpdateRequest):
     from spatial import validate_edge
     with editing(req.expected_token) as conn:
         edge=conn.execute('SELECT * FROM map_edges WHERE id=?',(edge_id,)).fetchone()
-        if not edge: raise fastapi.HTTPException(404,'通道不存在')
+        if not edge: raise fastapi.HTTPException(404,'Passage not found')
         validate_edge(conn,edge['map_id'],edge['from_id'],edge['to_id'],req.edge_type)
         conn.execute('UPDATE map_edges SET label=?,locked=?,key_item=?,edge_type=?,discovered=? WHERE id=?',
                      (req.label,int(req.locked),req.key_item,req.edge_type,int(req.discovered) if req.discovered is not None else edge['discovered'],edge_id))
@@ -456,7 +456,7 @@ def map_update_edge(edge_id:int,req:MapEdgeUpdateRequest):
 def map_delete_edge(edge_id:int,expected_token:str|None=None):
     with editing(expected_token) as conn:
         if not conn.execute('DELETE FROM map_edges WHERE id=?',(edge_id,)).rowcount:
-            raise fastapi.HTTPException(404,'通道不存在')
+            raise fastapi.HTTPException(404,'Passage not found')
     return {'status':'success'}
 
 
@@ -465,7 +465,7 @@ def map_move_to_room(room_id:int|None=None,timeline_id:int|None=None,expected_to
     from spatial import set_position
     with editing(expected_token) as conn:
         if timeline_id is not None and not conn.execute('SELECT id FROM timelines WHERE id=?',(timeline_id,)).fetchone():
-            raise fastapi.HTTPException(404,'队伍不存在')
+            raise fastapi.HTTPException(404,'Team does not exist')
         target=set_position(conn,room_id,timeline_id)
     return {'status':'success','room_id':room_id,'label':target['label'] if target else ''}
 
@@ -481,7 +481,7 @@ def map_auto_room(req:MapAutoRoomRequest):
 def map_set_room_state(room_id:int,state:str,expected_token:str|None=None):
     from spatial import ROOM_STATES,room_record
     with editing(expected_token) as conn:
-        if state not in ROOM_STATES: raise ValueError('地点状态无效')
+        if state not in ROOM_STATES: raise ValueError('Invalid location state')
         room_record(conn,room_id)
         conn.execute('UPDATE map_rooms SET state=? WHERE id=?',(state,room_id))
     return {'status':'success'}

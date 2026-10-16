@@ -21,7 +21,7 @@ def reserve_listener(first_port=8000, attempts=20):
             return listener
         except OSError:
             listener.close()
-    raise OSError(f'无法使用端口 {first_port}–{first_port + attempts - 1}，请关闭旧后端后重试。')
+    raise OSError(f'Cannot use ports {first_port}–{first_port + attempts - 1}; stop the previous backend and try again.')
 
 
 def open_when_ready(server, url):
@@ -37,8 +37,8 @@ def run_local_server(app, logger):
         port = listener.getsockname()[1]
         url = f'http://127.0.0.1:{port}/connect'
         if port != 8000:
-            logger.warning('8000 端口已被占用，改用端口 %d。', port)
-        logger.info('浏览器入口：%s', url)
+            logger.warning('Port 8000 is in use; using port %d.', port)
+        logger.info('Open in your browser: %s', url)
         server = uvicorn.Server(uvicorn.Config(
             app, host='0.0.0.0', port=port, log_level='info', proxy_headers=False))
         threading.Thread(target=open_when_ready, args=(server, url), daemon=True).start()

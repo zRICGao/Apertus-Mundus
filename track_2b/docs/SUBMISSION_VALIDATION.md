@@ -6,6 +6,29 @@ this record. The submission remains under `track_2b/`; the root Makefile forward
 
 ## Verified
 
+### English language review
+
+- Interface text, server messages, active generation prompts, deployment documentation
+  and the bundled fictional demo are in English. Legacy identity and private-chat
+  markers remain accepted for existing saves. The historical Chinese campaign
+  benchmark in the report has not been remeasured with English content.
+- Fixed English likelihood weighting, preserved multiword location aliases, corrected
+  private-chat preview markers and enabled incremental output at English sentence ends.
+- Six included Python regressions and three English frontend regressions pass, as do
+  five frontend API tests and all three Vue template compilations. Python and JavaScript
+  syntax checks and the isolated deployment smoke flow pass.
+- All 259 existing offline regressions pass against an isolated runtime copy after
+  updating localized output expectations to English and supplying the existing
+  developer fixtures. Source-export validation verifies all 93 manifest hashes and
+  confirms required report files, documentation links and tests are present.
+- The report source required by the README links and packaging script is present.
+  DESIGN.md, PRODUCT.md and the English regressions are included in source exports.
+  The imported ZIP archive is excluded from this GitHub update at the user's request.
+- Docker's Linux engine is unavailable on this machine. This language review does not
+  establish a fresh container build, real-model quality or target-hardware performance.
+
+### Earlier submission checks
+
 - Default, local Apertus and GPU-helper Compose configurations parse successfully.
 - Application Docker COPY inputs, Python syntax, frontend JavaScript syntax and
   README links are present and consistent with the submission layout.
@@ -24,7 +47,7 @@ this record. The submission remains under `track_2b/`; the root Makefile forward
   pages plus one reference page; changed pages were rendered and visually checked.
 - Report metrics sum correctly. The package includes its editable report, PDF,
   generator, aggregate evidence ledger and included boundary tests.
-- Public data totals 2,848 bytes, below the 100 MB limit. The tracked-file audit finds
+- Public English demo data totals 3,659 bytes, below the 100 MB limit. The source audit finds
   no runtime databases, private campaign directories, credential files or matches
   for the checked credential-token/private-key patterns.
 

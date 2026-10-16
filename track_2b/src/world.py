@@ -117,10 +117,10 @@ def create_entity(conn, *, name, entity_type="npc", state_desc="", location="", 
     uid = uid or new_uid()
     validate_visibility(visibility)
     if not str(name).strip():
-        raise ValueError("实体名称不能为空")
+        raise ValueError("Entity name cannot be empty")
     if not isinstance(aliases or [],list) or any(not isinstance(a,str) or not a.strip() for a in aliases or []):
-        raise ValueError('别名必须是非空字符串列表')
-    if uid and not re.fullmatch(r'ent_[a-f0-9]{32}',uid): raise ValueError('实体ID格式无效')
+        raise ValueError('Aliases must be a list of nonempty strings')
+    if uid and not re.fullmatch(r'ent_[a-f0-9]{32}',uid): raise ValueError('Invalid entity ID format')
     conn.execute("INSERT INTO world_entities(uid,entity_type,name,state_desc,location,status,room_id,aliases,visibility) "
                  "VALUES(?,?,?,?,?,?,?,?,?)", (uid, entity_type, str(name).strip()[:100], state_desc, location,
                     status, room_id, encode(aliases or []), visibility))
@@ -131,15 +131,15 @@ def resolve_entity(conn, *, uid=None, name=None, entity_type=None):
     if uid:
         row = conn.execute("SELECT * FROM world_entities WHERE uid=?", (uid,)).fetchone()
         if row is None:
-            raise ValueError(f"实体引用不存在：{uid}")
+            raise ValueError(f"Entity reference does not exist: {uid}")
         return row
     if not name:
-        raise ValueError("需要实体 ID 或名称")
+        raise ValueError("Entity ID or name required")
     rows = conn.execute("SELECT * FROM world_entities WHERE name=?", (name,)).fetchall()
     if entity_type:
         rows = [r for r in rows if r["entity_type"] == entity_type]
     if len(rows) != 1:
-        raise ValueError(f"名称「{name}」{'有歧义，请使用实体 ID' if rows else '不存在'}")
+        raise ValueError(f"Name [{name}]{'is ambiguous; use an entity ID' if rows else 'does not exist'}")
     return rows[0]
 
 
@@ -158,7 +158,7 @@ def link_character(conn, char_id, uid=None, *, new=False, desc=""):
 
 def validate_visibility(value):
     if value not in {"public", "gm"} and not re.fullmatch(r"(?:team:\d+|entity:ent_[a-f0-9]{32})", value):
-        raise ValueError("visibility 必须为 public、gm、team:队伍ID 或 entity:实体ID")
+        raise ValueError("visibility must be public, gm, team:<party ID>, or entity:<entity ID>")
 
 
 def visible(scope, viewer="gm", timeline_id=None):
@@ -199,29 +199,29 @@ def known_definitions(conn):
 def define_state(conn, definition, event_id):
     key = str(definition.get("key", "")).strip()
     if not key or len(key) > 100:
-        raise ValueError("状态键不能为空，且不能超过100字符")
+        raise ValueError("State key must be nonempty and at most 100 characters")
     name = str(definition.get("display_name", key)).strip()
     description = str(definition.get("description", "")).strip()
     kind = definition.get("value_type", "text")
     if kind not in {"text", "integer", "number", "boolean", "enum", "json"} or not description:
-        raise ValueError("新状态必须提供含义和受支持的值类型")
+        raise ValueError("A new state must provide its meaning and a supported value type")
     enum = definition.get("enum_values", [])
     lower, upper = definition.get("min_value"), definition.get("max_value")
     import math
     if any(v is not None and (type(v) not in {int,float} or not math.isfinite(v)) for v in (lower,upper)):
-        raise ValueError("状态范围必须为有限数值")
+        raise ValueError("State range must contain finite numbers")
     if kind == "enum" and (not isinstance(enum, list) or not enum):
-        raise ValueError("枚举状态需要非空候选值")
+        raise ValueError("Enum state requires nonempty allowed values")
     if lower is not None and upper is not None and lower > upper:
-        raise ValueError("状态范围无效")
+        raise ValueError("Invalid state range")
     existing = conn.execute("SELECT * FROM state_definitions WHERE key=?", (key,)).fetchone()
     if existing:
         # Definitions are stable; changing their semantics requires an explicit new key.
         for field in ("value_type", "description", "min_value", "max_value"):
             if field in definition and definition[field] != existing[field]:
-                raise ValueError(f"状态「{key}」的定义与已登记定义冲突")
+                raise ValueError(f"State [{key}] definition conflicts with the registered definition")
         if "enum_values" in definition and encode(enum) != existing["enum_values"]:
-            raise ValueError("状态枚举定义冲突")
+            raise ValueError("State enum definition conflict")
         return existing["uid"]
     uid = new_uid("state")
     conn.execute("INSERT INTO state_definitions VALUES(?,?,?,?,?,?,?,?,?,?,?)", (uid, key, name, description,
@@ -236,12 +236,12 @@ def _check_value(definition, value):
              "number": type(value) in {int, float}, "boolean": type(value) is bool,
              "enum": value in json.loads(definition["enum_values"]), "json": True}[kind]
     if not valid:
-        raise ValueError(f"状态 {definition['key']} 的值类型无效")
+        raise ValueError(f"State  {definition['key']} has an invalid value type")
     if kind in {"integer", "number"}:
         import math
         if not math.isfinite(value) or (definition["min_value"] is not None and value < definition["min_value"]) or (
                 definition["max_value"] is not None and value > definition["max_value"]):
-            raise ValueError(f"状态 {definition['key']} 超出定义范围")
+            raise ValueError(f"State  {definition['key']} is outside the defined range")
 
 
 def apply_state_changes(conn, definitions, changes, event_id, references=None):
@@ -257,19 +257,19 @@ def apply_state_changes(conn, definitions, changes, event_id, references=None):
         definition = conn.execute("SELECT * FROM state_definitions WHERE key=? OR uid=?",
                                   (change.get("state_key"), change.get("state_uid"))).fetchone()
         if definition is None:
-            raise ValueError("状态变更引用未定义的状态")
+            raise ValueError("State change references an undefined state")
         if change.get("op", "set") == "remove":
             conn.execute("DELETE FROM entity_states WHERE entity_uid=? AND state_uid=? AND target_uid=?",
                          (uid, definition["uid"], target))
             continue
         if change.get("op", "set") != "set":
-            raise ValueError("状态操作只支持 set/remove")
+            raise ValueError("State operations only support set/remove")
         _check_value(definition, change.get("value"))
         visibility = change.get("visibility", "public")
         validate_visibility(visibility)
         expires = change.get("expires_at_tick")
         if expires is not None and (type(expires) is not int or expires < 0):
-            raise ValueError("过期回合必须为非负整数")
+            raise ValueError("Expiration tick must be a nonnegative integer")
         conn.execute("INSERT INTO entity_states(entity_uid,state_uid,target_uid,value,visibility,expires_at_tick,source_event_id) "
                      "VALUES(?,?,?,?,?,?,?) ON CONFLICT(entity_uid,state_uid,target_uid) DO UPDATE SET "
                      "value=excluded.value,visibility=excluded.visibility,expires_at_tick=excluded.expires_at_tick,"
@@ -315,14 +315,14 @@ def resolve_mention(conn, mention, context="", *, viewer="gm", timeline_id=None)
     if not candidates:
         return {"status": "unknown", "entity_uid": None, "candidates": []}
     criteria = {c["entity_uid"]: encode(c) for c in candidates}
-    criteria["unknown"] = "证据不足、候选均不是、或无法区分"
+    criteria["unknown"] = "Insufficient evidence, no candidate matches, or cannot distinguish"
     result = evaluate({"mention": mention, "context": context}, {"entity": {
-        "type": "choice", "instructions": "根据明确上下文判断玩家所指对象；不得猜测。", "criteria": criteria}})["entity"]
+        "type": "choice", "instructions": "Resolve the object referenced by the player using explicit context; do not guess.", "criteria": criteria}})["entity"]
     probabilities = sorted(result.probabilities.values(), reverse=True)
     ambiguous = result.status != "ok" or result.value == "unknown" or (result.confidence is not None and result.confidence < .55) or (len(probabilities) > 1 and probabilities[0] - probabilities[1] < .15)
     return {"status": "clarification_required" if ambiguous else "resolved",
             "entity_uid": None if ambiguous else result.value, "candidates": candidates,
-            "question": f"你说的「{mention}」指的是哪一个：" + "、".join(c["name"] for c in candidates) + "？" if ambiguous else "",
+            "question": f"When you said [{mention}], which one did you mean: " + ", ".join(c["name"] for c in candidates) + "?" if ambiguous else "",
             "provider": result.provider, "confidence": result.confidence}
 
 
@@ -382,24 +382,24 @@ def restore(conn, data):
 
 
 WORLD_PROMPT = """
-【实体身份与开放状态协议】
-名称可重复；已知角色/实体的副作用优先引用上下文中的 entity_uid；也可使用唯一的姓名或别名，由系统归一化。
-stat_changes 使用 entity_uid；emotion_deltas/npc_memories 使用 entity_uid。
-新实体使用 new_entities:[{ref:'new_1',name,entity_type,description,aliases,visibility}]，不得自造永久ID。
-人物的新建优先使用 npc:{ref:'new_1',name,role:'NPC',hp,san,inventory,backstory}。
-对话模式新人物使用 new_entities，entity_type 为 npc；可提供 hp、san、inventory，省略时默认50、60、空背包。
-新登场且参与互动的人物建议在本分支声明；其副作用引用 ref，如 new_1，也可使用本分支中一致的自然称呼，不能借用其他角色的ID。
-纯背景描写无需登记人物，也无需强行为每个人生成情绪、记忆或数值变化。不确定对象的副作用可省略，保持剧情自然连贯。
-同一新人物不要同时登记在npc和new_entities中。npc.ref与new_entities.ref在该分支内不能重复。
-已有实体的名称/位置/状态/别名/描述变化使用 entity_changes:[{entity_uid,name?,location?,status?,description?,aliases?}]。
-状态按需自动定义，不需要人类预设：state_definitions:[{key,display_name,description,value_type,
-enum_values?,min_value?,max_value?,effects?,aliases?}]。value_type 为 text/integer/number/boolean/enum/json。
-优先复用已知状态定义；同一键的含义、类型和量纲不得改变。描述性状态无需强制数值化。
-状态变更使用 state_changes:[{entity_uid:'已有ID或new_1',state_key,op:'set或remove',value?,target_uid?,
-visibility:'public或gm或team:队伍ID或entity:实体ID',expires_at_tick?}]。
-new_entities/state_definitions/state_changes 必须在各分支内部；未选择分支是草稿，不能成为事实。
-有歧义且影响结果时返回 clarification:{question:'向玩家澄清的问题',candidates:[{entity_uid,name}]}，branches:[]。
-不得通过猜测确定要出售、丢弃、转移或攻击的对象。新物品可以登记为 item 实体。
-世界为同一世界中的分队行动，所有队伍共享事实，但各有独立位置和知情范围。
-GM可见的私密信息不能自动变成玩家或NPC的知识；只有其visibility明确允许或确认获知才可用于台词。
+[Entity Identity and Open State Protocol]
+Names may repeat. Side effects targeting known characters/entities should preferably use entity_uid from context; unique names or aliases may also be used and will be normalized by the system.
+stat_changes uses entity_uid; emotion_deltas/npc_memories use entity_uid.
+For new entities use new_entities:[{ref:'new_1',name,entity_type,description,aliases,visibility}]; do not invent permanent IDs.
+Prefer npc:{ref:'new_1',name,role:'NPC',hp,san,inventory,backstory} to create a character.
+New characters in dialogue mode use new_entities with entity_type npc; hp, san, and inventory are optional and default to 50, 60, and an empty inventory.
+Declare newly introduced interactive characters within the current branch. Their side effects reference ref, such as new_1, or a consistent unambiguous in-branch name; do not borrow the ID of another character.
+Pure background descriptions do not require character registration or forced emotion, memory, or numerical changes for everyone. Omit effects with uncertain targets, keeping the story natural and coherent.
+Do not register the same new character in both npc and new_entities. npc.ref and new_entities.ref must be unique within the branch.
+Changes to the name/location/status/aliases/description of an existing entity use entity_changes:[{entity_uid,name?,location?,status?,description?,aliases?}].
+Define states automatically as needed, without requiring human presets: state_definitions:[{key,display_name,description,value_type,
+enum_values?,min_value?,max_value?,effects?,aliases?}]. value_type can be text/integer/number/boolean/enum/json.
+Prefer reusing known state definitions. Do not change the meaning, type, or units of an existing key. Descriptive states do not need to be numerical.
+State changes use state_changes:[{entity_uid:'existing ID or new_1',state_key,op:'set or remove',value?,target_uid?,
+visibility:'public or gm or team:<party ID> or entity:<entity ID>',expires_at_tick?}].
+new_entities/state_definitions/state_changes must occur inside individual branches; an unselected branch remains a draft and must not become a fact.
+If ambiguity affects the outcome, return clarification:{question:'question to ask the player',candidates:[{entity_uid,name}]},branches:[].
+Do not guess which object is being sold, discarded, transferred, or attacked. A new item can be registered as an item entity.
+Parties act separately within one shared world. All parties share world facts but have separate locations and scopes of knowledge.
+Private information visible to the GM does not automatically become player or NPC knowledge; it may be used in dialogue only when visibility explicitly permits or knowledge acquisition is confirmed.
 """

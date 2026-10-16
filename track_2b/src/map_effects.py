@@ -8,19 +8,19 @@ from spatial import (room_record,resolve_room,party_characters,current_room,set_
 def adjacent_edge(conn, current, target):
     rows=conn.execute('SELECT * FROM map_edges WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)',
                        (current,target,target,current)).fetchall()
-    if len(rows)!=1: raise ValueError('目标不相邻或通道存在歧义，请明确现有通道')
+    if len(rows)!=1: raise ValueError('The destination is not adjacent or the passage is ambiguous; specify the existing passage')
     return rows[0]
 
 
 def edge_reference(conn, spec, origin):
     if spec.get('edge_id') is not None:
         edge=conn.execute('SELECT * FROM map_edges WHERE id=?',(spec['edge_id'],)).fetchone()
-        if not edge or edge['map_id']!=origin['map_id']: raise ValueError('通道不存在或不属于当前地图')
+        if not edge or edge['map_id']!=origin['map_id']: raise ValueError('The passage does not exist or belongs to another map')
     else:
         a=resolve_room(conn,spec,'from_room_id','from_label',origin['map_id'])
         b=resolve_room(conn,spec,'to_room_id','to_label',origin['map_id'])
         edge=adjacent_edge(conn,a['id'],b['id'])
-    if origin['id'] not in (edge['from_id'],edge['to_id']): raise ValueError('队伍不在该通道附近')
+    if origin['id'] not in (edge['from_id'],edge['to_id']): raise ValueError('The party is not near this passage')
     validate_edge(conn,origin['map_id'],edge['from_id'],edge['to_id'],edge['edge_type'])
     return edge
 
@@ -29,22 +29,22 @@ def plan_map_actions(conn, parsed, current_room_id, timeline_id=None):
     actions=copy.deepcopy(parsed.get('map_actions') or {})
     if not actions: return {'actions':{},'origin':None,'new':None,'move':None,'unlock':None,'reveal':None,'reveal_edge':None}
     if not isinstance(actions,dict) or set(actions)-{'new_room','movement','unlock_edge','reveal_room','reveal_edge'}:
-        raise ValueError('地图变化包含不支持的动作')
-    if not current_room_id: raise ValueError('请先确定队伍所在地点')
+        raise ValueError('The map changes contain an unsupported action')
+    if not current_room_id: raise ValueError('Determine the party location first')
     origin=room_record(conn,current_room_id)
     people=party_characters(conn,timeline_id)
     plan={'actions':actions,'origin':dict(origin),'new':None,'move':None,'unlock':None,'reveal':None,'reveal_edge':None}
     new=actions.get('new_room')
     if new:
-        if not isinstance(new,dict): raise ValueError('新增区域格式无效')
+        if not isinstance(new,dict): raise ValueError('Invalid new-area format')
         new.setdefault('ref','new_room')
-        if not isinstance(new['ref'],str) or not new['ref']: raise ValueError('新区域需要有效临时引用')
+        if not isinstance(new['ref'],str) or not new['ref']: raise ValueError('The new area requires a valid temporary reference')
         new.setdefault('floor',origin['floor']); new.setdefault('edge_type','normal')
         validate_room({'label':new.get('label'),'floor':new['floor'],'map_id':origin['map_id'],'aliases':new.get('aliases',[])})
-        if new.get('parent_room_id',origin['id'])!=origin['id']: raise ValueError('新区域须通过当前地点建立明确连接')
+        if new.get('parent_room_id',origin['id'])!=origin['id']: raise ValueError('The new area must have an explicit connection to the current location')
         if new['edge_type'] not in EDGE_TYPES or (new['floor']!=origin['floor'] and new['edge_type']=='normal'):
-            raise ValueError('跨楼层区域须明确楼梯、电梯或传送门')
-        if not isinstance(new.get('description',''),str): raise ValueError('新区域描述必须为文本')
+            raise ValueError('Areas on different floors must specify stairs, an elevator, or a portal')
+        if not isinstance(new.get('description',''),str): raise ValueError('The new-area description must be text')
         new['position']=placement(conn,origin['map_id'],origin['id'],new['floor'])
         plan['new']=new
     reveal=actions.get('reveal_room')
@@ -58,43 +58,43 @@ def plan_map_actions(conn, parsed, current_room_id, timeline_id=None):
     if unlock:
         edge=edge_reference(conn,unlock,origin)
         if not edge['discovered'] and (not plan['reveal_edge'] or plan['reveal_edge']['id']!=edge['id']):
-            raise ValueError('尚未发现这条通道，请先声明揭示通道')
+            raise ValueError('This passage has not been discovered; declare passage revelation first')
         consume=None
         if edge['locked']:
             key=unlock.get('key_used','').strip()
-            if edge['key_item'] and key!=edge['key_item']: raise ValueError('钥匙与通道要求不匹配')
+            if edge['key_item'] and key!=edge['key_item']: raise ValueError('The key does not match the passage requirements')
             if key:
                 owners=[]
                 for char in people:
                     items=[s.strip() for s in re.split('[,，;；\n]',char['inventory'] or '') if s.strip()]
                     if key in items: owners.append((char,items))
                 if unlock.get('owner_uid'): owners=[pair for pair in owners if pair[0]['entity_uid']==unlock['owner_uid']]
-                if len(owners)!=1: raise ValueError('队伍没有这把钥匙，或持有人需要澄清')
+                if len(owners)!=1: raise ValueError('The party does not have this key, or its owner is ambiguous')
                 char,items=owners[0]; items.remove(key)
                 if any(change.get('entity_uid')==char['entity_uid'] and change.get('inventory_remove')==key
                        for change in parsed.get('stat_changes',[])):
-                    raise ValueError('钥匙由解锁动作扣除，不能再通过背包副作用重复扣除')
+                    raise ValueError('The unlock action consumes the key; do not consume it again through inventory side effects')
                 consume={'char_id':char['id'],'inventory':', '.join(items)}
         plan['unlock']={'edge':dict(edge),'consume':consume}
     move=actions.get('movement')
     if move:
-        if not isinstance(move,dict): raise ValueError('移动动作格式无效')
+        if not isinstance(move,dict): raise ValueError('Invalid movement-action format')
         ref=move.get('target_room_ref')
         # Legacy generated labels may refer to the new place; canonicalize before validation.
         if new and move.get('target_room_id') is None and move.get('target_room_label')==new['label']:
             ref=new['ref']; move.pop('target_room_label',None); move['target_room_ref']=ref
         if ref:
-            if not new or ref!=new['ref']: raise ValueError('移动引用了未声明的新区域')
+            if not new or ref!=new['ref']: raise ValueError('Movement references an undeclared new area')
             plan['move']={'new_ref':ref}
         else:
             target=resolve_room(conn,move,'target_room_id','target_room_label',origin['map_id'])
-            if target['id']==origin['id']: raise ValueError('目标就是当前位置，无需重复移动')
+            if target['id']==origin['id']: raise ValueError('The destination is the current location; no movement is needed')
             edge=adjacent_edge(conn,origin['id'],target['id'])
             validate_edge(conn,origin['map_id'],edge['from_id'],edge['to_id'],edge['edge_type'])
             if not edge['discovered'] and (not plan['reveal_edge'] or plan['reveal_edge']['id']!=edge['id']):
-                raise ValueError('目标通道尚未发现，请先揭示')
+                raise ValueError('The destination passage has not been discovered; reveal it first')
             if edge['locked'] and (not plan['unlock'] or plan['unlock']['edge']['id']!=edge['id']):
-                raise ValueError('通道上锁，请先解锁')
+                raise ValueError('The passage is locked; unlock it first')
             plan['move']=dict(target)
     return plan
 

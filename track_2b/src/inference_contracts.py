@@ -40,7 +40,7 @@ def spatial_context(conn, timeline_id=None):
         origin = current_room(conn, timeline_id)
         row = conn.execute('SELECT id,map_id FROM map_rooms WHERE id=?', (origin,)).fetchone() if origin else None
     except (sqlite3.DatabaseError, TypeError, ValueError) as exc:
-        raise HTTPException(503, '地图暂时无法读取，请稍后重试') from exc
+        raise HTTPException(503, 'Map temporarily unavailable; try again later') from exc
     if row:
         return {'mode': 'mapped', 'room_id': row['id'], 'map_id': row['map_id']}
     return {'mode': 'text', 'room_id': None,
@@ -53,11 +53,11 @@ def normalize_spatial(branch, spatial, action_type='mixed'):
         branch['map_actions'] = None
         return
     if not isinstance(actions, dict):
-        raise ValueError('地图变化必须为对象')
+        raise ValueError('Map changes must be an object')
     actions = {k: v for k, v in actions.items() if v not in (None, {}, [], '')}
     if spatial['mode'] == 'text':
         if actions:
-            branch.setdefault('reference_warnings', []).append('本分支采用文字空间模式，未执行模型提出的地图动作')
+            branch.setdefault('reference_warnings', []).append('This branch uses text-only space; proposed map actions were not executed')
         branch['map_actions'] = None
         return
     movement = actions.get('movement')
@@ -68,31 +68,33 @@ def normalize_spatial(branch, spatial, action_type='mixed'):
 
 def summary_prompt(context, action_type, spatial, *, gm_correction='', mood='', force_thrust=False):
     from world import encode, WORLD_PROMPT
-    labels = ('世界观', '角色状态', '状态定义', '剧情记忆', '近期事件', '实体', '证据', '地图')
-    system = ('你是跑团GM。本次只生成候选短摘要，不写完整叙事；这些结果尚未发生。'
-              '根据行动自然生成2至4个不同结果。每个node_content目标40至80字，绝不超过100字符。'
-              '不要写thought_process或分析过程。只返回完整严格JSON对象。'
-              'text不超过20字，node_name不超过15字，likelihood为简短定性判断。'
-              '无变化的副作用字段必须省略，不输出null、空数组或空对象。'
-              '只保留实际必要的候选状态变化、人物声明和记忆；副作用位于各自分支内。'
-              '完整正文仅在玩家点选后由另一请求流式扩写，本次禁止写长文本。\n' + WORLD_PROMPT)
-    system += '\n已确认上下文：\n' + encode(dict(zip(labels, context)))
-    system += '\n行动类型：' + action_type
+    labels = ('Worldview', 'Character state', 'State definitions', 'Story memory', 'Recent events', 'Entities', 'Evidence', 'Map')
+    system = ('You are a tabletop RPG GM. Write all narrative and explanations in English. '
+              'Generate only short candidate summaries; these outcomes have not happened. '
+              'Produce 2 to 4 distinct plausible outcomes for the action. Aim for 40 to 80 characters '
+              'per node_content and never exceed 100 characters. '
+              'Do not output thought_process or analysis. Return only a complete, strict JSON object. '
+              'Keep text within 20 characters and node_name within 15 characters; likelihood is a brief qualitative assessment. '
+              'Omit unchanged side-effect fields; do not output null, empty arrays or empty objects. '
+              'Include only necessary proposed state changes, character declarations and memories inside each branch. '
+              'A separate request expands the selected branch as a stream; do not write full prose now.\n' + WORLD_PROMPT)
+    system += '\nConfirmed context:\n' + encode(dict(zip(labels, context)))
+    system += '\nAction type: ' + action_type
     if spatial['mode'] == 'text' or action_type == 'dialogue':
-        system += ('\n本次不能执行地图动作，输出中禁止map_actions。可以依据行动描述文字转场，'
-                   '但不得声称已登记房间ID、坐标、通道或已验证可通行。')
+        system += ('\nMap actions are unavailable; omit map_actions. You may describe a transition in prose, '
+                   'but do not claim registered room IDs, coordinates, passages or verified access.')
     else:
-        system += ('\n无实际空间变化必须省略map_actions。观察、商量、同一房间内走动不是地图移动。'
-                   '确需地图动作时仅输出有内容的movement/new_room/reveal_room/reveal_edge/unlock_edge。'
-                   '已有地点用真实整数ID，新地点声明ref；发现与进入分开，不虚构已有ID。')
+        system += ('\nOmit map_actions without actual spatial changes. Observing, discussing or walking within one room is not map movement. '
+                   'When needed, include only populated movement/new_room/reveal_room/reveal_edge/unlock_edge actions. '
+                   'Use real integer IDs for existing places and declare a ref for a new place. Distinguish discovery from entry; never invent existing IDs.')
     example = {'branches': [
-        {'text': '谨慎核对线索', 'node_name': '共同核对', 'node_content': '你与同伴核对眼前线索，确认下一步调查方向。', 'likelihood': '较高（谨慎稳妥）'},
-        {'text': '继续观察', 'node_name': '留意细节', 'node_content': '你暂缓决定，仔细观察尚未注意到的环境细节。', 'likelihood': '中等（需要时间）'}]}
-    system += '\n格式示例（按实际剧情填写）：' + encode(example)
+        {'text': 'Check the clues', 'node_name': 'Compare notes', 'node_content': 'You compare clues with your companions and agree on the next lead.', 'likelihood': 'High (careful review)'},
+        {'text': 'Keep watching', 'node_name': 'Small details', 'node_content': 'You pause to study details of the surroundings you had overlooked.', 'likelihood': 'Medium (takes time)'}]}
+    system += '\nFormat example (adapt to the actual story): ' + encode(example)
     if mood:
-        system += '\n叙事氛围：' + mood
+        system += '\nNarrative mood: ' + mood
     if force_thrust:
-        system += '\n至少一个摘要提出推动剧情的线索，并保留平稳选项。'
+        system += '\nAt least one summary should offer a lead that advances the story; retain a calm option.'
     if gm_correction:
-        system += '\nGM纠正：' + gm_correction
+        system += '\nGM correction: ' + gm_correction
     return system

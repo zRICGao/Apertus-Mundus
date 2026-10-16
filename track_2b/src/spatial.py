@@ -10,14 +10,14 @@ def aliases(value):
     if isinstance(value, str):
         value = json.loads(value or '[]')
     if not isinstance(value, list) or any(not isinstance(s, str) or not s.strip() for s in value):
-        raise ValueError('地点别名必须为非空文本列表')
+        raise ValueError('Location aliases must be a list of nonempty strings')
     return list(dict.fromkeys(s.strip() for s in value))
 
 
 def room_record(conn, room_id, map_id=None):
     row = conn.execute('SELECT * FROM map_rooms WHERE id=?', (room_id,)).fetchone()
     if not row or (map_id is not None and row['map_id'] != map_id):
-        raise ValueError('地点不存在或不属于当前地图')
+        raise ValueError('The location does not exist or belongs to another map')
     return row
 
 
@@ -26,13 +26,13 @@ def resolve_room(conn, data, id_key, label_key, map_id, floor=None):
         return room_record(conn, data[id_key], map_id)
     label = str(data.get(label_key, '')).strip()
     if not label:
-        raise ValueError('请指定地点ID或名称')
+        raise ValueError('Specify a location ID or name')
     rows = [r for r in conn.execute('SELECT * FROM map_rooms WHERE map_id=?', (map_id,))
             if label in [r['label'], *aliases(r['aliases'])]]
     if floor is not None:
         rows = [r for r in rows if r['floor'] == floor]
     if len(rows) != 1:
-        raise ValueError('地点名称有歧义或尚未登记，请选择地点ID')
+        raise ValueError('Location name is ambiguous or not registered; select a location ID')
     return rows[0]
 
 
@@ -40,7 +40,7 @@ def party_characters(conn, timeline_id=None):
     if timeline_id is not None:
         team = conn.execute("SELECT * FROM timelines WHERE id=? AND status='active'", (timeline_id,)).fetchone()
         if not team:
-            raise ValueError('队伍不存在或已汇合')
+            raise ValueError('The party does not exist or has already merged')
         ids = {int(v) for v in team['char_ids'].split(',') if v.strip().isdigit()}
         return [r for r in conn.execute('SELECT * FROM characters') if r['id'] in ids]
     assigned = {int(v) for team in conn.execute("SELECT char_ids FROM timelines WHERE status='active'")
@@ -51,7 +51,7 @@ def party_characters(conn, timeline_id=None):
 def current_room(conn, timeline_id=None):
     if timeline_id is not None:
         team = conn.execute("SELECT current_room_id FROM timelines WHERE id=? AND status='active'", (timeline_id,)).fetchone()
-        if not team: raise ValueError('队伍不存在或已汇合')
+        if not team: raise ValueError('The party does not exist or has already merged')
         return team[0]
     row = conn.execute("SELECT value FROM system_state WHERE key='current_room_id'").fetchone()
     return int(row[0]) if row and row[0] else None
@@ -78,7 +78,7 @@ def bind_scene(conn, node_id, room_id):
     if not node_id or room_id is None: return
     room_record(conn, room_id)
     if not conn.execute('SELECT id FROM nodes WHERE id=?', (node_id,)).fetchone():
-        raise ValueError('绑定的剧情节点不存在')
+        raise ValueError('The linked story node does not exist')
     conn.execute('UPDATE map_rooms SET node_id=NULL WHERE node_id=? AND id!=?',(node_id,room_id))
     conn.execute('INSERT OR REPLACE INTO scene_locations(node_id,room_id) VALUES(?,?)', (node_id, room_id))
 
@@ -88,33 +88,33 @@ def scene_room(conn, node_id):
     if mapped:
         return room_record(conn, mapped[0])
     rows = conn.execute('SELECT * FROM map_rooms WHERE node_id=?', (node_id,)).fetchall()
-    if len(rows) > 1: raise ValueError('场景绑定了多个地点，请先在地图中明确绑定')
+    if len(rows) > 1: raise ValueError('The scene is linked to multiple locations; specify the link in the map first')
     return rows[0] if rows else None
 
 
 def validate_room(data):
     if not isinstance(data.get('label'), str) or not data['label'].strip() or len(data['label']) > 100:
-        raise ValueError('地点名称须为1至100字')
+        raise ValueError('Location name must be between 1 and 100 characters')
     if data.get('state', 'unknown') not in ROOM_STATES:
-        raise ValueError('地点状态无效')
+        raise ValueError('Invalid location state')
     for key in ('x', 'y', 'w', 'h'):
         value = data.get(key, {'x':0, 'y':0, 'w':120, 'h':80}[key])
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-            raise ValueError('地图位置和尺寸必须为有限数值')
-        if key in {'w', 'h'} and value <= 0: raise ValueError('房间尺寸必须大于零')
+            raise ValueError('Map position and dimensions must be finite numbers')
+        if key in {'w', 'h'} and value <= 0: raise ValueError('Room dimensions must be greater than zero')
     if type(data.get('floor', 1)) is not int or type(data.get('map_id', 1)) is not int:
-        raise ValueError('地图编号与楼层必须为整数')
+        raise ValueError('Map ID and floor must be integers')
     aliases(data.get('aliases', []))
     if not math.isfinite(data.get('x',0)+data.get('w',120)) or not math.isfinite(data.get('y',0)+data.get('h',80)):
-        raise ValueError('房间位置与尺寸超出可表示范围')
+        raise ValueError('Room position or dimensions exceed the supported range')
 
 
 def validate_edge(conn, map_id, a, b, edge_type):
     first, second = room_record(conn, a, map_id), room_record(conn, b, map_id)
-    if a == b: raise ValueError('通道两端不能是同一地点')
-    if edge_type not in EDGE_TYPES: raise ValueError('通道类型无效')
+    if a == b: raise ValueError('A passage cannot connect a location to itself')
+    if edge_type not in EDGE_TYPES: raise ValueError('Invalid passage type')
     if first['floor'] != second['floor'] and edge_type == 'normal':
-        raise ValueError('跨楼层通道须指定楼梯、电梯或传送门')
+        raise ValueError('A passage between floors must specify stairs, an elevator, or a portal')
     return first, second
 
 

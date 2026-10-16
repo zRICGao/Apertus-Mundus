@@ -14,20 +14,20 @@ def _records(config, key):
 def validate_campaign(config):
     """Recognize legacy campaigns and versioned saves before touching the world."""
     if not isinstance(config, dict):
-        raise ValueError("这不是有效剧本或存档：文件内容必须是一个对象")
+        raise ValueError("Invalid campaign or save: the file contents must be an object")
     if "world_snapshot" in config:
         data = config["world_snapshot"]
         if (config.get("schema_version") != 2 or not isinstance(data, dict)
                 or not all(key in data for key in ("nodes", "characters", "system_state"))):
-            raise ValueError("存档格式无效或版本不受支持")
+            raise ValueError("Invalid save format or unsupported version")
     else:
         data = config
         if not any(key in data for key in ("nodes", "characters")):
-            raise ValueError("这不是有效剧本：缺少场景或角色数据，请选择剧本文件")
+            raise ValueError("Invalid campaign: missing scene or character data. Please select a campaign file")
     for key in SNAPSHOT_TABLES:
         if key in data and (not isinstance(data[key], list)
                             or any(not isinstance(row, dict) for row in data[key])):
-            raise ValueError(f"剧本格式无效：{key} 必须是记录列表")
+            raise ValueError(f"Invalid campaign format: {key} must be a list of records")
     return config
 
 
@@ -47,7 +47,7 @@ def load_save(db_file, base_dir, filename, campaigns_dir=None):
         relative = Path(*relative.parts[1:])
     target = (base / relative).resolve()
     if not target.is_relative_to(base):
-        raise ValueError("存档必须在项目目录内")
+        raise ValueError("Save files must be within the project directory")
     folder = target if target.is_dir() else None
     file = target / "campaign.json" if folder else target
     config = validate_campaign(json.loads(file.read_text(encoding="utf-8")))
@@ -58,7 +58,7 @@ def load_save(db_file, base_dir, filename, campaigns_dir=None):
                 restore(conn, config["world_snapshot"])
             else:
                 data = {table: [] for table in SNAPSHOT_TABLES}
-                data["system_state"] = [{"key": "worldview", "value": config.get("worldview", "【默认世界观】")},
+                data["system_state"] = [{"key": "worldview", "value": config.get("worldview", "[Default Worldview]")},
                     {"key": "session_memory", "value": config.get("session_memory", "")},
                     {"key": "player_current_scene_id", "value": ""}]
                 for table in ("characters", "nodes", "options", "lorebook", "triggers", "timelines", "world_entities",
@@ -90,7 +90,7 @@ def load_save(db_file, base_dir, filename, campaigns_dir=None):
                 for doc_id, document in enumerate(raw_documents, 1):
                     chunks = document.get("chunks") or [{"index": i, "text": chunk, "embedding": "[]"}
                         for i, chunk in enumerate(chunk_text(document.get("text", "")))]
-                    data["rag_documents"].append({"id": doc_id, "title": document.get("title", "未命名"),
+                    data["rag_documents"].append({"id": doc_id, "title": document.get("title", "Untitled"),
                         "source": document.get("source", ""), "chunk_size": len(chunks), "hidden": document.get("hidden", 0),
                         "visibility": document.get("visibility", "public"),"embedding_model":document.get('embedding_model','')})
                     for chunk in chunks:
@@ -102,7 +102,7 @@ def load_save(db_file, base_dir, filename, campaigns_dir=None):
             conn.execute("DELETE FROM game_checkpoints")
         from rag import refresh_vector_cache
         refresh_vector_cache()
-        return {"status": "success", "message": f"已加载 {filename}"}
+        return {"status": "success", "message": f"Loaded {filename}"}
     finally:
         conn.close()
 
@@ -121,10 +121,10 @@ def export_save(db_file, campaigns_dir, save_name=""):
     root = Path(campaigns_dir).resolve()
     folder = (root / name).resolve()
     if not folder.is_relative_to(root):
-        raise ValueError("无效存档名称")
+        raise ValueError("Invalid save name")
     folder.mkdir(parents=True, exist_ok=True)
     payload = {"schema_version": 2, "world_snapshot": data}
     temporary = folder / "campaign.json.tmp"
     temporary.write_text(encode(payload), encoding="utf-8")
     temporary.replace(folder / "campaign.json")
-    return {"status": "success", "message": "存档已保存", "filename": f"campaigns/{name}", "folder": str(folder)}
+    return {"status": "success", "message": "Save completed", "filename": f"campaigns/{name}", "folder": str(folder)}

@@ -3,12 +3,12 @@ from world import entity_state_context, resolve_entity, record_event, refresh_wi
 from database import connect_db, atomic
 from providers import generation, parse_object
 """
-APERTUS-MUNDUS 引擎 — 触发器系统模块 (trigger.py)
+APERTUS-MUNDUS Engine — Trigger System Module (trigger.py)
 
-支持功能：
-- DAG 条件树：{"op": "and|or|not", "children": [...]}，旧 AND 列表自动迁移
+Supported features:
+- DAG condition tree:{"op": "and|or|not", "children": [...]}, with automatic migration of legacy AND lists
 - fire_count / cooldown / prerequisite_trigger_ids / exclude_trigger_ids
-- trigger_judgements 表记录 AI 推理过程（含 prompt_hash 去重缓存）
+- The trigger_judgements table records AI decision reasoning (including prompt_hash deduplication cache)
 """
 
 import hashlib
@@ -27,10 +27,10 @@ from rag import refresh_vector_cache
 
 _log = get_logger("trigger")
 
-trigger_router = APIRouter(tags=["触发器系统"])
+trigger_router = APIRouter(tags=["Trigger System"])
 
 # ---------------------------------------------------------
-# 依赖注入
+# Dependency injection
 # ---------------------------------------------------------
 _db_file: str = ""
 _generation_client = None
@@ -67,15 +67,15 @@ def safe_db():
 
 
 # ---------------------------------------------------------
-# Schema 迁移（幂等，启动时自动执行）
+# Schema migration (idempotent, runs automatically on startup)
 # ---------------------------------------------------------
 def _ensure_schema():
     with safe_db() as conn:
-        # triggers 表新增字段
+        # Additional triggers table columns
         for col, typedef in [
             ("fire_count",               "INTEGER NOT NULL DEFAULT 0"),
             ("cooldown",                 "INTEGER NOT NULL DEFAULT 0"),
-            ("last_fired_at",            "INTEGER NOT NULL DEFAULT 0"),  # Unix 时间戳，避免时区歧义
+            ("last_fired_at",            "INTEGER NOT NULL DEFAULT 0"),  # Unix timestamp to avoid timezone ambiguity
             ("prerequisite_trigger_ids", "TEXT NOT NULL DEFAULT '[]'"),
             ("exclude_trigger_ids",      "TEXT NOT NULL DEFAULT '[]'"),
             ("max_fire_count",           "INTEGER NOT NULL DEFAULT 0"),
@@ -84,12 +84,12 @@ def _ensure_schema():
             try:
                 conn.execute(f"ALTER TABLE triggers ADD COLUMN {col} {typedef}")
             except sqlite3.OperationalError:
-                pass  # 列已存在
+                pass  # Column already exists
 
         if 'timeline_id' not in {r[1] for r in conn.execute('PRAGMA table_info(triggers)')}:
             conn.execute('ALTER TABLE triggers ADD COLUMN timeline_id INTEGER')
 
-        # trigger_judgements 表（AI 判定审计记录，不作缓存读路径）
+        # trigger_judgements table (AI decision audit trail, not a cache read path)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS trigger_judgements (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,7 +99,7 @@ def _ensure_schema():
                 timestamp     TEXT,
                 reasoning     TEXT,
                 result        INTEGER,
-                condition_hash TEXT  -- 仅供去重聚合查询，不参与判定逻辑
+                condition_hash TEXT  -- For deduplicated aggregate queries only; not used in decision logic
             )
         """)
         conn.execute(
@@ -109,9 +109,9 @@ def _ensure_schema():
         try:
             conn.execute("ALTER TABLE trigger_judgements ADD COLUMN condition_hash TEXT")
         except sqlite3.OperationalError:
-            pass  # 列已存在
+            pass  # Column already exists
 
-        # game_flags 表：供 set_flag 动作读写命名状态位
+        # game_flags table: named state flags read and written by set_flag
         conn.execute("""
             CREATE TABLE IF NOT EXISTS game_flags (
                 key   TEXT PRIMARY KEY,
@@ -122,25 +122,25 @@ def _ensure_schema():
 
 
 # ---------------------------------------------------------
-# Pydantic 数据模型
+# Pydantic data models
 # ---------------------------------------------------------
 class ConditionItem(BaseModel):
     type: str
     value: str = ""
 
 class TriggerCreateRequest(BaseModel):
-    label: str = "未命名触发器"
-    target_node_id: int = 0             # passive 模式可为 0（无跳转目标）
+    label: str = "Unnamed Trigger"
+    target_node_id: int = 0             # passive mode can use 0 (no navigation target)
     mode: str = "soft"                  # soft | hard | passive
-    conditions: list | dict = []        # 接受列表（旧）或树（新）
+    conditions: list | dict = []        # Accept legacy lists or new tree structures
     cond_type: str = ""
     cond_value: str = ""
     cooldown: int = 0
     prerequisite_trigger_ids: list[int] = []
     exclude_trigger_ids: list[int] = []
-    max_fire_count: int = 0             # 0=无限；>0=触发N次后永久封锁
+    max_fire_count: int = 0             # 0=unlimited; >0=permanently block after N activations
     timeline_id: int | None = None
-    actions: list = []                  # 触发时执行的副作用动作列表
+    actions: list = []                  # List of side-effect actions executed on trigger activation
 
 class TriggerUpdateRequest(BaseModel):
     label: str
@@ -164,12 +164,12 @@ class CheckTriggersRequest(BaseModel):
 
 
 # ---------------------------------------------------------
-# 条件树：解析 & 规范化
+# Condition tree: parsing and normalization
 # ---------------------------------------------------------
 def _parse_condition_tree(raw: str | None) -> dict:
     """
-    将数据库 conditions 字段解析为标准树节点。
-    旧格式 [...] 自动升级为 {"op": "and", "children": [...]}。
+    Parse the database conditions field into canonical tree nodes.
+    Legacy [...] is automatically upgraded to  {"op": "and", "children": [...]}.
     """
     if not raw:
         return {"op": "and", "children": []}
@@ -179,7 +179,7 @@ def _parse_condition_tree(raw: str | None) -> dict:
         return {"op": "and", "children": []}
 
     if isinstance(data, list):
-        # 旧 AND 列表
+        # Legacy AND list
         leaves = [{"type": c.get("type", ""), "value": c.get("value", "")}
                   for c in data if c.get("type")]
         return {"op": "and", "children": leaves}
@@ -191,7 +191,7 @@ def _parse_condition_tree(raw: str | None) -> dict:
 
 
 def _normalize_conditions(req) -> str:
-    """将请求中的 conditions 字段统一序列化为 JSON 树。"""
+    """Serialize the request conditions field consistently as a JSON tree."""
     conds = getattr(req, "conditions", [])
     if isinstance(conds, dict) and "op" in conds:
         return json.dumps(conds, ensure_ascii=False)
@@ -200,7 +200,7 @@ def _normalize_conditions(req) -> str:
                    "value": c.value if hasattr(c, "value") else c.get("value","")}
                   for c in conds]
         return json.dumps({"op": "and", "children": leaves}, ensure_ascii=False)
-    # 旧单字段回退
+    # Legacy single-field fallback
     if getattr(req, "cond_type", ""):
         return json.dumps({"op": "and", "children": [
             {"type": req.cond_type, "value": req.cond_value}
@@ -209,7 +209,7 @@ def _normalize_conditions(req) -> str:
 
 
 def _collect_ai_leaves(node: dict) -> list[str]:
-    """递归收集树中所有 type=='ai' 的叶节点 value。"""
+    """Recursively collect value from all tree leaves with type=='ai'."""
     if "op" in node:
         result = []
         for child in node.get("children", []):
@@ -221,10 +221,10 @@ def _collect_ai_leaves(node: dict) -> list[str]:
 
 
 # ---------------------------------------------------------
-# 单叶节点本地判定
+# Local evaluation of individual leaves
 # ---------------------------------------------------------
 def _judge_leaf(node: dict, scene_id: int, chars: list, all_inv: str) -> bool | None:
-    """返回 True/False 或 None（需 AI 判断）。"""
+    """Return True/False or None (requires AI evaluation)."""
     ctype = node.get("type", "")
     cval  = node.get("value", "").strip()
 
@@ -259,13 +259,13 @@ def _judge_leaf(node: dict, scene_id: int, chars: list, all_inv: str) -> bool | 
         return False
 
     if ctype == "ai":
-        return None  # 交给 AI 批判
+        return None  # Delegate evaluation to AI
 
     return False
 
 
 # ---------------------------------------------------------
-# 递归树求值
+# Recursive tree evaluation
 # ---------------------------------------------------------
 def _eval_tree(node,scene_id,chars,all_inv,ai_cache,_depth=0,conn=None):
     return _eval_tree_3val(node,scene_id,chars,all_inv,ai_cache,_depth,conn) is True
@@ -273,9 +273,9 @@ def _eval_tree(node,scene_id,chars,all_inv,ai_cache,_depth=0,conn=None):
 
 
 # ---------------------------------------------------------
-# 三值预求值（True / False / _MAYBE）— AI 剪枝
+# Three-valued preliminary evaluation (True / False / _MAYBE) — AI pruning
 # ---------------------------------------------------------
-_MAYBE = object()  # 哨兵：AI 条件结果未知，需调用后确定
+_MAYBE = object()  # Sentinel: AI condition outcome unknown until model call
 
 
 def _eval_tree_3val(node,scene_id,chars,all_inv,ai_cache,_depth=0,conn=None):
@@ -313,12 +313,12 @@ def _eval_tree_3val(node,scene_id,chars,all_inv,ai_cache,_depth=0,conn=None):
 
 
 # ---------------------------------------------------------
-# AI 批量判断（judgements 表仅作审计，不作缓存读路径）
+# Batched AI decisions (judgements table is audit-only, not a cache read path)
 # ---------------------------------------------------------
 def _batch_judge_ai(values,scene_name,scene_content,conn,trigger_id=None,scene_id=0,timeline_id=None):
     scope={'timeline_id':timeline_id} if timeline_id is not None else {}
     context=_fn_get_system_context(conn,scene_name,scene_content,**scope) if _fn_get_system_context else ()
-    questions={str(i):{"type":"noul","instructions":"仅根据已确认事实判断以下条件是否成立："+value} for i,value in enumerate(values)}
+    questions={str(i):{"type":"noul","instructions":"Determine whether the following condition holds using confirmed facts only: "+value} for i,value in enumerate(values)}
     decisions=evaluate({"scene":scene_name,"content":scene_content,"confirmed_context":context},questions)
     results={}
     for i,value in enumerate(values):
@@ -333,10 +333,10 @@ def _batch_judge_ai(values,scene_name,scene_content,conn,trigger_id=None,scene_i
 
 
 # ---------------------------------------------------------
-# AI 即时生成节点内容辅助
+# AI-assisted on-demand node generation
 # ---------------------------------------------------------
 def _generate_node_ai(prompt: str, scene_name: str, conn) -> dict | None:
-    """使用 AI 即兴生成一个剧情节点，返回 {name, content} 或 None（失败时）。"""
+    """Improvise a story node using AI; return {name, content} or None on failure."""
     if not _generation_client or not _fn_get_system_context:
         return None
     try:
@@ -345,23 +345,23 @@ def _generate_node_ai(prompt: str, scene_name: str, conn) -> dict | None:
             _fn_get_system_context(conn, scene_name, prompt)
 
         system_prompt = (
-            "你是一个专业的 TRPG 叙事生成器。根据提示即兴创作一个新剧情节点。\n"
-            "语言沉浸、简洁有力，禁止出戏或解释性旁白。\n\n"
-            "--- 世界观 ---\n"
+            "You are a professional TRPG narrative generator. Improvise a new story node from the prompt.\n"
+            "Write immersive, concise, evocative prose. Do not break immersion or add explanatory narration.\n\n"
+            "--- World Lore ---\n"
             f"{worldview}\n\n"
-            "--- 当前世界实体状态 ---\n"
+            "--- Current World Entity States ---\n"
             f"{world_entities_text}\n\n"
-            "返回严格 JSON（仅此两字段）：\n"
-            '{"name": "节点标题（10字以内）", "content": "场景骨架（60-100字）"}'
+            "Return strict JSON (these two fields only):\n"
+            '{"name": "Node title (at most 10 characters)", "content": "Scene outline (60–100 characters)"}'
         )
         user_prompt = (
-            "【近期记忆】\n"
+            "[Recent Memory]\n"
             f"{session_memory}\n\n"
-            "【队伍状态】\n"
+            "[Party Status]\n"
             f"{party_status}\n\n"
-            "【当前场景】\n"
+            "[Current Scene]\n"
             f"{scene_name}\n\n"
-            "【节点生成提示】\n"
+            "[Node Generation Prompt]\n"
             f"{prompt}"
         )
         resp = _generation_client.chat.completions.create(
@@ -375,20 +375,20 @@ def _generate_node_ai(prompt: str, scene_name: str, conn) -> dict | None:
             response_format={"type": "json_object"},
         )
         if resp.choices[0].finish_reason == "length":
-            _log.warning("gen_node AI 截断")
+            _log.warning("gen_node AI output truncated")
             return None
         parsed = json.loads(resp.choices[0].message.content)
-        name    = str(parsed.get("name", "触发生成节点")).strip()[:80]
+        name    = str(parsed.get("name", "Trigger-generated node")).strip()[:80]
         content = str(parsed.get("content", "")).strip()
         return {"name": name, "content": content} if content else None
     except Exception as e:
-        _log.warning("gen_node AI 调用失败: %s", e)
+        _log.warning("gen_node AI call failed: %s", e)
         return None
 
 
 # ---------------------------------------------------------
-# 触发器动作执行（触发时副作用）
-# 返回 side_effects dict 供 check_triggers 聚合后下发给前端
+# Execute trigger actions (side effects on activation)
+# Return side_effects dict for check_triggers to aggregate and send to the frontend
 # ---------------------------------------------------------
 
 def party_members(conn, timeline_id):
@@ -409,16 +409,16 @@ def append_rule_memory(conn, timeline_id, text):
 def _execute_actions(actions_raw: str, conn, trigger_id: int,
                      scene_id: int, scene_name: str, timeline_id=None) -> dict:
     """
-    动作类型一览：
-      set_flag      — {key, value}：写入 game_flags 表
-      mod_stat      — {target, attr, delta}：改角色 hp/san，target="PC" 作用全体玩家角色
-      add_memory    — {text}：写入会话记忆
-      fire_trigger  — {id}：强制激活另一触发器（不递归执行其动作，防止循环）
-      inject_text   — {node_id?, text}：向指定节点追加叙事文字（node_id=0 → 当前场景）
-      inject_option — {node_id?, text, next_node_id}：向指定节点注入选项
-      gen_node      — {prompt, mode}：AI 即时生成新节点并返回供前端跳转
-      mod_inventory — {target, op, item}：op="add"|"remove"，修改角色 inventory 纯文本字段
-      mod_npc       — {name, field, value?, delta?}：改实体 status / emotion_* / memory_add
+    Action types:
+      set_flag      — {key, value}: write to the game_flags table
+      mod_stat      — {target, attr, delta}: modify character hp/san; target="PC" applies to all player characters
+      add_memory    — {text}: append to session memory
+      fire_trigger  — {id}: activate another trigger without recursively executing its actions to prevent cycles
+      inject_text   — {node_id?, text}：append narrative text to a node (node_id=0 → current scene)
+      inject_option — {node_id?, text, next_node_id}: inject an option into a node
+      gen_node      — {prompt, mode}: generate a new node on demand and return it for frontend navigation
+      mod_inventory — {target, op, item}: op="add"|"remove", modify the plain-text character inventory field
+      mod_npc       — {name, field, value?, delta?}: modify entity status / emotion_* / memory_add
       entity_script — {name, action}：appear | leave | die | attack
     """
     members = party_members(conn, timeline_id)
@@ -426,8 +426,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
         "text_injections":  [],   # [{node_id, text}]
         "option_injections": [],  # [{node_id, option_id, text, next_node_id}]
         "generated_nodes":  [],   # [{trigger_id, node_id, node_name, node_content, mode}]
-        "log":              [],   # [str] 人类可读的动作执行摘要，下发给前端显示
-        "reveal_rag_ids":   [],   # [int] reveal_rag 解锁的 doc_id，commit 后刷新向量缓存
+        "log":              [],   # [str] Human-readable action summary sent to the frontend
+        "reveal_rag_ids":   [],   # [int] doc_id values unlocked by reveal_rag; refresh vector cache after commit
     }
 
     try:
@@ -450,7 +450,7 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                          'gen_node','mod_inventory','mod_npc','entity_script','set_state','spawn_npc','mod_worldview','add_lore','reveal_rag'}:
             raise ValueError(f'Unknown trigger action: {atype}')
         try:
-            # ── 原有四种 ──────────────────────────────────────────────────────
+            # ── Original four types ──────────────────────────────────────────────────────
             if atype == "set_flag":
                 key = str(act.get("key", "")).strip()
                 val = str(act.get("value", "")).strip()
@@ -459,8 +459,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "INSERT OR REPLACE INTO game_flags (key, value) VALUES (?, ?)",
                         (key, val)
                     )
-                    _log.info("触发器 %d set_flag: %s = %s", trigger_id, key, val)
-                    side_effects["log"].append(f"🚩 标志位 {key} = {val}")
+                    _log.info("Trigger %d set_flag: %s = %s", trigger_id, key, val)
+                    side_effects["log"].append(f"🚩 Flag {key} = {val}")
 
             elif atype == "mod_stat":
                 target = str(act.get("target", "PC")).strip()
@@ -477,16 +477,16 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                             f"UPDATE characters SET {attr}=MAX(0,{attr}+?) WHERE entity_uid=?",
                             (delta, target)
                         )
-                    _log.info("触发器 %d mod_stat: [%s] %s %+d", trigger_id, target, attr, delta)
-                    label = "全体玩家" if target.upper() == "PC" else target
+                    _log.info("Trigger %d mod_stat: [%s] %s %+d", trigger_id, target, attr, delta)
+                    label = "All player characters" if target.upper() == "PC" else target
                     side_effects["log"].append(f"💢 {label} {attr.upper()} {delta:+d}")
 
             elif atype == "add_memory":
                 text = str(act.get("text", "")).strip()
                 if text and _fn_append_to_memory:
                     append_rule_memory(conn, timeline_id, text)
-                    _log.info("触发器 %d add_memory: %s…", trigger_id, text[:40])
-                    side_effects["log"].append(f"📝 记忆已写入：{text[:30]}…" if len(text) > 30 else f"📝 记忆已写入：{text}")
+                    _log.info("Trigger %d add_memory: %s…", trigger_id, text[:40])
+                    side_effects["log"].append(f"📝 Memory saved: {text[:30]}…" if len(text) > 30 else f"📝 Memory saved: {text}")
 
             elif atype == "fire_trigger":
                 tid = int(act.get("id", 0))
@@ -503,10 +503,10 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                             "UPDATE triggers SET fired=?, fire_count=?, last_fired_at=? WHERE id=?",
                             (new_fired, new_cnt, int(time.time()), tid)
                         )
-                        _log.info("触发器 %d fire_trigger: 激活 #%d（第%d次）", trigger_id, tid, new_cnt)
-                        side_effects["log"].append(f"⚡ 触发器 #{tid} 已激活（第{new_cnt}次）")
+                        _log.info("Trigger %d fire_trigger: activated #%d (time %d)", trigger_id, tid, new_cnt)
+                        side_effects["log"].append(f"⚡ Trigger #{tid} activated (time {new_cnt})")
 
-            # ── 叙事层 ────────────────────────────────────────────────────────
+            # ── Narrative layer ────────────────────────────────────────────────────────
             elif atype == "inject_text":
                 target_node = int(act.get("node_id", 0) or 0) or scene_id
                 text = str(act.get("text", "")).strip()
@@ -521,7 +521,7 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                                 "UPDATE nodes SET expanded_content=expanded_content||? WHERE id=?",
                                 ("\n\n" + text, target_node)
                             )
-                            # 同步追加到战报史册最近一条记录的深入调查快照
+                            # Also append to the investigation snapshot of the latest battle chronicle entry
                             conn.execute(
                                 "UPDATE chronicle_log SET expanded_content=expanded_content||? "
                                 "WHERE id=(SELECT id FROM chronicle_log WHERE scene_id=? "
@@ -533,7 +533,7 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                                 "UPDATE nodes SET content=content||? WHERE id=?",
                                 ("\n\n" + text, target_node)
                             )
-                            # 同步追加到战报史册最近一条记录的场景快照
+                            # Also append to the scene snapshot of the latest battle chronicle entry
                             conn.execute(
                                 "UPDATE chronicle_log SET scene_content=scene_content||? "
                                 "WHERE id=(SELECT id FROM chronicle_log WHERE scene_id=? "
@@ -543,8 +543,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         side_effects["text_injections"].append(
                             {"node_id": target_node, "text": text}
                         )
-                        _log.info("触发器 %d inject_text → 节点%d: %s…", trigger_id, target_node, text[:30])
-                        side_effects["log"].append(f"📖 文本已注入当前场景")
+                        _log.info("Trigger %d inject_text → node %d: %s…", trigger_id, target_node, text[:30])
+                        side_effects["log"].append(f"📖 Text injected into the current scene")
 
             elif atype == "inject_option":
                 target_node = int(act.get("node_id", 0) or 0) or scene_id
@@ -561,9 +561,9 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "text":        opt_text,
                         "next_node_id": next_nid,
                     })
-                    _log.info("触发器 %d inject_option → 节点%d: [%s]→%d",
+                    _log.info("Trigger %d inject_option → node %d: [%s]→%d",
                               trigger_id, target_node, opt_text, next_nid)
-                    side_effects["log"].append(f"🔀 新选项已注入：「{opt_text[:20]}」→ 节点#{next_nid}")
+                    side_effects["log"].append(f"🔀 New option injected: [{opt_text[:20]}] → node #{next_nid}")
 
             elif atype == "gen_node":
                 prompt   = str(act.get("prompt", "")).strip()
@@ -584,10 +584,10 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                             "node_content": result["content"],
                             "mode":         nav_mode,
                         })
-                        _log.info("触发器 %d gen_node → 新节点%d「%s」", trigger_id, new_nid, result["name"])
-                        side_effects["log"].append(f"✨ AI 已生成节点「{result['name']}」(#{new_nid})")
+                        _log.info("Trigger %d gen_node → new node %d [%s]", trigger_id, new_nid, result["name"])
+                        side_effects["log"].append(f"✨ AI generated node [{result['name']}] (#{new_nid})")
 
-            # ── 实体层 ────────────────────────────────────────────────────────
+            # ── Entity layer ────────────────────────────────────────────────────────
             elif atype == "mod_inventory":
                 target = str(act.get("target", "PC")).strip()
                 op     = str(act.get("op",     "add")).strip()
@@ -614,10 +614,10 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                             "UPDATE characters SET inventory=? WHERE id=?",
                             (new_inv, c["id"])
                         )
-                    _log.info("触发器 %d mod_inventory: [%s] %s %s", trigger_id, target, op, item)
-                    label = "全体玩家" if target.upper() == "PC" else target
-                    op_str = "获得" if op == "add" else "失去"
-                    side_effects["log"].append(f"🎒 {label} {op_str}「{item}」")
+                    _log.info("Trigger %d mod_inventory: [%s] %s %s", trigger_id, target, op, item)
+                    label = "All player characters" if target.upper() == "PC" else target
+                    op_str = "gained" if op == "add" else "lost"
+                    side_effects["log"].append(f"🎒 {label} {op_str} [{item}]")
 
             elif atype == "mod_npc":
                 name  = str(act.get("name", "")).strip()
@@ -628,8 +628,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                     "SELECT id, state_desc FROM world_entities WHERE uid=?", (name,)
                 ).fetchone()
                 if not row:
-                    _log.warning("触发器 %d mod_npc: 找不到实体「%s」", trigger_id, name)
-                    side_effects["log"].append(f"👤 ⚠ 找不到实体「{name}」")
+                    _log.warning("Trigger %d mod_npc: Entity not found: [%s]", trigger_id, name)
+                    side_effects["log"].append(f"👤 ⚠ Entity not found: [{name}]")
                     continue
                 ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -639,8 +639,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "UPDATE world_entities SET status=?, updated_at=? WHERE uid=?",
                         (val, ts, name)
                     )
-                    _log.info("触发器 %d mod_npc: %s.status → %s", trigger_id, name, val)
-                    side_effects["log"].append(f"👤 {name} 状态 → {val}")
+                    _log.info("Trigger %d mod_npc: %s.status → %s", trigger_id, name, val)
+                    side_effects["log"].append(f"👤 {name} status → {val}")
 
                 elif field.startswith("emotion_"):
                     emo_key = field[len("emotion_"):]
@@ -656,8 +656,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "UPDATE world_entities SET state_desc=?, updated_at=? WHERE uid=?",
                         (json.dumps(sd, ensure_ascii=False), ts, name)
                     )
-                    _log.info("触发器 %d mod_npc: %s.%s %+d", trigger_id, name, emo_key, delta)
-                    emo_names = {"trust": "信任", "fear": "恐惧", "irritation": "愤怒"}
+                    _log.info("Trigger %d mod_npc: %s.%s %+d", trigger_id, name, emo_key, delta)
+                    emo_names = {"trust": "Trust", "fear": "Fear", "irritation": "Irritation"}
                     side_effects["log"].append(f"👤 {name} {emo_names.get(emo_key, emo_key)} {delta:+d} → {emo[emo_key]}")
 
                 elif field == "memory_add":
@@ -674,8 +674,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                             "UPDATE world_entities SET state_desc=?, updated_at=? WHERE uid=?",
                             (json.dumps(sd, ensure_ascii=False), ts, name)
                         )
-                        _log.info("触发器 %d mod_npc memory_add: %s ← %s…", trigger_id, name, mem_text[:30])
-                        side_effects["log"].append(f"👤 {name} 记忆已写入")
+                        _log.info("Trigger %d mod_npc memory_add: %s ← %s…", trigger_id, name, mem_text[:30])
+                        side_effects["log"].append(f"👤 {name} memory saved")
 
             elif atype == "entity_script":
                 name   = str(act.get("name",   "")).strip()
@@ -686,8 +686,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                     "SELECT id, state_desc FROM world_entities WHERE uid=?", (name,)
                 ).fetchone()
                 if not row:
-                    _log.warning("触发器 %d entity_script: 找不到实体「%s」", trigger_id, name)
-                    side_effects["log"].append(f"⚙️ ⚠ 找不到实体「{name}」")
+                    _log.warning("Trigger %d entity_script: Entity not found: [%s]", trigger_id, name)
+                    side_effects["log"].append(f"⚙️ ⚠ Entity not found: [{name}]")
                     continue
                 ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -697,8 +697,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "UPDATE world_entities SET status=?, updated_at=? WHERE uid=?",
                         (status_map[action], ts, name)
                     )
-                    _log.info("触发器 %d entity_script: %s → %s", trigger_id, name, action)
-                    action_names = {"appear": "登场", "leave": "离场", "die": "死亡"}
+                    _log.info("Trigger %d entity_script: %s → %s", trigger_id, name, action)
+                    action_names = {"appear": "appeared", "leave": "left", "die": "died"}
                     side_effects["log"].append(f"⚙️ {name} {action_names[action]}")
 
                 elif action == "attack":
@@ -710,31 +710,31 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                     emo["irritation"] = min(100, emo.get("irritation", 0) + 30)
                     emo["trust"]      = max(-100, emo.get("trust", 0) - 20)
                     mem = sd.get("memory", [])
-                    mem.append(f"[触发器] 在场景「{scene_name}」对玩家发动攻击")
+                    mem.append(f"[Trigger] Attacked players in scene [{scene_name}]")
                     sd["emotion"] = emo
                     sd["memory"]  = mem[-20:]
                     conn.execute(
                         "UPDATE world_entities SET state_desc=?, updated_at=? WHERE uid=?",
                         (json.dumps(sd, ensure_ascii=False), ts, name)
                     )
-                    _log.info("触发器 %d entity_script: %s 发动攻击", trigger_id, name)
-                    side_effects["log"].append(f"⚙️ {name} 发动攻击（愤怒+30，信任-20）")
+                    _log.info("Trigger %d entity_script: %s attacked", trigger_id, name)
+                    side_effects["log"].append(f"⚙️ {name} attacked (irritation +30, trust -20)")
 
-            # ── 世界构建层 ───────────────────────────────────────────────────
+            # ── World-building layer ───────────────────────────────────────────────────
             elif atype == "set_state":
                 for change in act.get('changes',[]):
                     character=conn.execute('SELECT id,role FROM characters WHERE entity_uid=?',(change.get('entity_uid'),)).fetchone()
                     if members is not None and character and character['role']=='PC' and character['id'] not in members:
                         raise ValueError('A squad rule cannot change another squad member')
-                event=record_event(conn,'trigger_state','触发状态变更',act,timeline_id)
+                event=record_event(conn,'trigger_state','Trigger state change',act,timeline_id)
                 apply_state_changes(conn,act.get('definitions',[]),act.get('changes',[]),event)
             elif atype == "spawn_npc":
                 name=str(act.get('name','')).strip()
-                if not name: raise ValueError('NPC名称不能为空')
+                if not name: raise ValueError('NPC name cannot be empty')
                 char=conn.execute("INSERT INTO characters(name,role,hp,san,inventory,personality) VALUES(?,'NPC',?,?,?,?)",
                     (name,int(act.get('hp',50)),int(act.get('san',60)),str(act.get('inventory','')),str(act.get('desc','')))).lastrowid
                 uid=link_character(conn,char,new=True)
-                side_effects['log'].append(f'NPC「{name}」登场')
+                side_effects['log'].append(f'NPC [{name}] appeared')
             elif atype == "mod_worldview":
                 op   = str(act.get("op",   "append")).strip()
                 text = str(act.get("text", "")).strip()
@@ -749,9 +749,9 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "UPDATE system_state SET value=value||? WHERE key='worldview'",
                         ("\n\n" + text,)
                     )
-                _log.info("触发器 %d mod_worldview[%s]: %s…", trigger_id, op, text[:40])
-                op_str = "已替换" if op == "replace" else "已追加"
-                side_effects["log"].append(f"🌍 世界观{op_str}（{len(text)} 字）")
+                _log.info("Trigger %d mod_worldview[%s]: %s…", trigger_id, op, text[:40])
+                op_str = "replaced" if op == "replace" else "appended"
+                side_effects["log"].append(f"🌍 World lore {op_str} ({len(text)} characters)")
 
             elif atype == "add_lore":
                 keywords = str(act.get("keywords", "")).strip()
@@ -761,8 +761,8 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         "INSERT INTO lorebook (keywords, content) VALUES (?,?)",
                         (keywords, content)
                     )
-                    _log.info("触发器 %d add_lore: [%s] %s…", trigger_id, keywords, content[:30])
-                    side_effects["log"].append(f"📚 Lorebook 新增：[{keywords[:20]}]")
+                    _log.info("Trigger %d add_lore: [%s] %s…", trigger_id, keywords, content[:30])
+                    side_effects["log"].append(f"📚 Lorebook added: [{keywords[:20]}]")
 
             elif atype == "reveal_rag":
                 doc_id = int(act.get("doc_id", 0))
@@ -773,18 +773,18 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                         (doc_id,)
                     )
                     side_effects["reveal_rag_ids"].append(doc_id)
-                    _log.info("触发器 %d reveal_rag: doc_id=%d 已解锁", trigger_id, doc_id)
+                    _log.info("Trigger %d reveal_rag: doc_id=%d unlocked", trigger_id, doc_id)
                     title = row["title"] if row else f"#{doc_id}"
-                    side_effects["log"].append(f"🔓 RAG 文档「{title}」已解锁并载入向量库")
+                    side_effects["log"].append(f"🔓 RAG document [{title}] unlocked and loaded into the vector index")
 
         except Exception as e:
-            raise ValueError(f"触发器 {trigger_id} 动作 {atype} 失败：{e}") from e
+            raise ValueError(f"Trigger {trigger_id} action {atype} failed: {e}") from e
 
     return side_effects
 
 
 def _has_gen_node_action(actions) -> bool:
-    """动作列表中含有 gen_node 时，跳转目标由 AI 运行时生成，无需固定 target_node_id。"""
+    """If the action list includes gen_node, the navigation target is created by AI at runtime, so a fixed target_node_id is unnecessary."""
     if isinstance(actions, str):
         try:
             actions = json.loads(actions)
@@ -794,14 +794,14 @@ def _has_gen_node_action(actions) -> bool:
 
 
 # ---------------------------------------------------------
-# 触发器完整检查（含 DAG、前驱、互斥、冷却、次数上限）
+# Full trigger evaluation (DAG, prerequisites, exclusions, cooldown, and activation limit)
 # ---------------------------------------------------------
 def _check_trigger(trigger_row, scene_id: int, scene_name: str,
                    scene_content: str, chars: list, all_inv: str,
                    ai_cache: dict, conn, timeline_id=None) -> bool:
     t = trigger_row
 
-    # ── 前驱：所有前驱触发器必须已 fire ────────────────────────────────────
+    # ── Prerequisites: all prerequisite triggers must have fired ────────────────────────────────────
     try:
         prereq_ids = json.loads(t["prerequisite_trigger_ids"] or "[]")
     except (TypeError, json.JSONDecodeError):
@@ -812,7 +812,7 @@ def _check_trigger(trigger_row, scene_id: int, scene_name: str,
             if not row or (row["fire_count"] == 0 and row["fired"] == 0):
                 return False
 
-    # ── 互斥：所有排斥触发器必须未 fire ────────────────────────────────────
+    # ── Exclusions: all excluded triggers must not have fired ────────────────────────────────────
     try:
         excl_ids = json.loads(t["exclude_trigger_ids"] or "[]")
     except (TypeError, json.JSONDecodeError):
@@ -823,33 +823,33 @@ def _check_trigger(trigger_row, scene_id: int, scene_name: str,
             if row and (row["fire_count"] > 0 or row["fired"] == 1):
                 return False
 
-    # ── 冷却检查 ────────────────────────────────────────────────────────────
+    # ── Cooldown check ────────────────────────────────────────────────────────────
     cooldown = t["cooldown"] if "cooldown" in t.keys() else 0
     if cooldown and cooldown > 0:
         last_ts = t["last_fired_at"] if "last_fired_at" in t.keys() else 0
         if last_ts and (time.time() - int(last_ts)) < cooldown:
             return False
 
-    # ── 触发次数上限 ─────────────────────────────────────────────────────────
+    # ── Activation limit ─────────────────────────────────────────────────────────
     max_fire = t["max_fire_count"] if "max_fire_count" in t.keys() else 0
     if max_fire > 0:
         cur_count = t["fire_count"] if "fire_count" in t.keys() else 0
         if cur_count >= max_fire:
             return False
 
-    # ── 条件树求值 ──────────────────────────────────────────────────────────
+    # ── Condition tree evaluation ──────────────────────────────────────────────────────────
     tree = _parse_condition_tree(t["conditions"] if "conditions" in t.keys() else "[]")
     if not tree.get("children"):
         return False
 
-    # ── 三值预求值：非 AI 条件短路剪枝，结果确定时直接返回，跳过 AI 调用 ──
+    # ── Three-valued pre-evaluation: short-circuit non-AI conditions and skip AI calls for known outcomes ──
     pre = _eval_tree_3val(tree, scene_id, chars, all_inv, ai_cache, conn=conn)
     if pre is False:
         return False
     if pre is True:
         return True
 
-    # 只有 _MAYBE（非 AI 条件无法单独确定结果）才收集 AI 条件并批量请求
+    # Collect and batch AI conditions only for _MAYBE (non-AI conditions alone cannot decide)
     ai_leaves = _collect_ai_leaves(tree)
     new_ai = [v for v in ai_leaves if v and v not in ai_cache]
     if new_ai:
@@ -862,7 +862,7 @@ def _check_trigger(trigger_row, scene_id: int, scene_name: str,
 
 
 # ---------------------------------------------------------
-# REST API 端点
+# REST API endpoints
 # ---------------------------------------------------------
 @trigger_router.get("/api/game/triggers")
 def get_triggers():
@@ -892,7 +892,7 @@ def create_trigger(req: TriggerCreateRequest):
     with safe_db() as conn:
         if req.target_node_id and req.mode != "passive" and not _has_gen_node_action(req.actions):
             if not conn.execute("SELECT id FROM nodes WHERE id=?", (req.target_node_id,)).fetchone():
-                raise fastapi.HTTPException(status_code=400, detail="目标节点不存在")
+                raise fastapi.HTTPException(status_code=400, detail="Target node does not exist")
         conditions_json = _normalize_conditions(req)
         c = conn.execute(
             "INSERT INTO triggers "
@@ -917,7 +917,7 @@ def update_trigger(tid: int, req: TriggerUpdateRequest):
     with safe_db() as conn:
         if req.target_node_id and req.mode != "passive" and not _has_gen_node_action(req.actions):
             if not conn.execute("SELECT id FROM nodes WHERE id=?", (req.target_node_id,)).fetchone():
-                raise fastapi.HTTPException(status_code=400, detail="目标节点不存在")
+                raise fastapi.HTTPException(status_code=400, detail="Target node does not exist")
         conditions_json = _normalize_conditions(req)
         conn.execute("UPDATE triggers SET timeline_id=? WHERE id=?", (req.timeline_id, tid))
         conn.execute(
@@ -960,7 +960,7 @@ def reset_trigger(tid: int):
 
 @trigger_router.post("/api/game/triggers/reset-all")
 def reset_all_triggers():
-    """将所有触发器重置为未触发状态（调试用）。"""
+    """Reset all triggers to their unfired state (debugging)."""
     with safe_db() as conn:
         conn.execute("UPDATE triggers SET fired=0, fire_count=0, last_fired_at=0")
         conn.commit()
@@ -969,7 +969,7 @@ def reset_all_triggers():
 
 @trigger_router.get("/api/game/trigger-judgements")
 def get_trigger_judgements(limit: int = 50):
-    """查询最近的 AI 判定记录，供 GM 追溯。"""
+    """Query recent AI decision records for GM audit."""
     with safe_db() as conn:
         rows = [dict(r) for r in conn.execute(
             "SELECT * FROM trigger_judgements ORDER BY id DESC LIMIT ?", (limit,)
@@ -983,9 +983,9 @@ def evaluate_triggers(conn, scene_id, scene_name, scene_content, timeline_id=Non
     if not conn.atomic_depth:
         raise ValueError('Trigger evaluation requires a world transaction')
     req=SimpleNamespace(scene_id=scene_id,scene_name=scene_name,scene_content=scene_content)
-    # 取未永久封锁的触发器：
-    # - fired=0：从未触发或无冷却可用
-    # - cooldown>0 AND 未达 max_fire 上限：可重复触发
+    # Get triggers that are not permanently blocked:
+    # - fired=0: never fired or available without cooldown
+    # - cooldown>0 AND below max_fire limit: can fire repeatedly
     pending = conn.execute(
         "SELECT * FROM triggers WHERE fired=0 "
         "OR (cooldown>0 AND (max_fire_count=0 OR fire_count < max_fire_count)) ORDER BY id"
@@ -1022,7 +1022,7 @@ def evaluate_triggers(conn, scene_id, scene_name, scene_content, timeline_id=Non
                                ai_cache, conn,timeline_id=timeline_id):
             continue
 
-        # ── 执行触发器动作副作用，收集前端需感知的副作用 ───────────────────
+        # ── Execute trigger action side effects and collect frontend-visible changes ───────────────────
         side = _execute_actions(
             t["actions"] if "actions" in t.keys() else "[]",
             conn, t["id"], req.scene_id, req.scene_name, timeline_id=timeline_id
@@ -1032,7 +1032,7 @@ def evaluate_triggers(conn, scene_id, scene_name, scene_content, timeline_id=Non
         if side["reveal_rag_ids"]:
             any_reveal_rag = True
 
-        # gen_node 条目携带 actions_log，供前端在生成节点 toast 中展示
+        # gen_node entries carry actions_log for the generated-node toast
         for gn in side["generated_nodes"]:
             gn["actions_log"] = side["log"]
         generated_nodes.extend(side["generated_nodes"])
@@ -1040,27 +1040,27 @@ def evaluate_triggers(conn, scene_id, scene_name, scene_content, timeline_id=Non
         record_event(conn,"trigger_fired",t["label"],{"trigger_id":t["id"],"actions":t["actions"],"source_event_id":source_event_id},
                      timeline_id, f'trigger:{source_event_id}:{t["id"]}' if source_event_id is not None else None)
 
-        # ── 更新触发状态 ─────────────────────────────────────────────────
+        # ── Update trigger state ─────────────────────────────────────────────────
         now_ts    = int(time.time())
         cooldown  = t["cooldown"]       if "cooldown"       in t.keys() else 0
         max_fire  = t["max_fire_count"] if "max_fire_count" in t.keys() else 0
         new_count = (t["fire_count"]    if "fire_count"     in t.keys() else 0) + 1
 
         if cooldown == 0:
-            new_fired = 1                                  # 无冷却：单次触发，永久封锁
+            new_fired = 1                                  # No cooldown: one activation, permanently blocked
         elif max_fire > 0 and new_count >= max_fire:
-            new_fired = 1                                  # 达到次数上限，永久封锁
+            new_fired = 1                                  # Activation limit reached; permanently blocked
         else:
-            new_fired = t["fired"]                         # 有冷却且未达上限，保持状态
+            new_fired = t["fired"]                         # Cooldown present and limit not reached; retain state
 
         conn.execute(
             "UPDATE triggers SET fired=?, fire_count=?, last_fired_at=? WHERE id=?",
             (new_fired, new_count, now_ts, t["id"])
         )
 
-        # ── 构建结果条目 ─────────────────────────────────────────────────
-        # gen_node 触发器：跳转通知走 generated_nodes 通道，避免双重弹窗
-        # 且 target_node_id=0，fired_results 里的 hard 模式会错误跳转到节点0
+        # ── Build result entries ─────────────────────────────────────────────────
+        # gen_node triggers use the generated_nodes navigation channel to avoid duplicate dialogs
+        # With target_node_id=0, hard mode in fired_results would incorrectly navigate to node 0
         if not side["generated_nodes"]:
             target_node = conn.execute(
                 "SELECT * FROM nodes WHERE id=?", (t["target_node_id"],)
@@ -1071,28 +1071,28 @@ def evaluate_triggers(conn, scene_id, scene_name, scene_content, timeline_id=Non
                 "label":            t["label"],
                 "mode":             t["mode"],
                 "target_node_id":   t["target_node_id"],
-                "target_node_name": target_node["name"] if target_node else "（无跳转目标）",
+                "target_node_name": target_node["name"] if target_node else "(no navigation target)",
                 "fire_count":       new_count,
                 "actions_log":      side["log"],
             })
 
-        # passive 模式无导航意图，不写记忆；soft/hard 模式写简洁的自然语言场景提示
-        # 跳转由当前后端事务完成，记忆同样属于当前提交。
+        # passive mode has no navigation intent and writes no memory; soft/hard write a concise natural-language scene hint
+        # Navigation occurs in the current backend transaction, and memory belongs to the same commit.
         if t["mode"] != "passive" and _fn_append_to_memory:
             if side["generated_nodes"]:
                 gn = side["generated_nodes"][0]
                 append_rule_memory(
                     conn, timeline_id,
-                    f"触发「{t['label']}」，进入「{gn['node_name']}」。"  #触发+触发器名称
+                    f"Triggered [{t['label']}], entered [{gn['node_name']}]."  #trigger + trigger name
                 )
             elif t["target_node_id"]:
                 target_node = conn.execute(
                     "SELECT name FROM nodes WHERE id=?", (t["target_node_id"],)
                 ).fetchone()
-                scene_label = target_node["name"] if target_node else f"场景{t['target_node_id']}"
+                scene_label = target_node["name"] if target_node else f"Scene {t['target_node_id']}"
                 append_rule_memory(
                     conn, timeline_id,
-                    f"触发「{t['label']}」，场景切换至「{scene_label}」。"
+                    f"Triggered [{t['label']}], scene switched to [{scene_label}]."
                 )
 
     hard_targets={item['target_node_id'] for item in fired_results if item['mode']=='hard' and item['target_node_id']}

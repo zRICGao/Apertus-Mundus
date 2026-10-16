@@ -9,7 +9,7 @@ node = shutil.which('node')
 if not node:
     raise SystemExit('JavaScript validation requires Node.js.')
 scripts = [Path(__file__).with_name(name).read_text(encoding='utf-8')
-           for name in ('frontend_api.js', 'frontend_ui.js', 'frontend_sync.js', 'frontend_npc_review.js')]
+           for name in ('frontend_api.js', 'frontend_ui.js', 'frontend_sync.js', 'frontend_npc_review.js', 'frontend_encyclopedia.js')]
 for name in ('index.html', 'phone.html', 'connect.html'):
     html = Path(__file__).with_name(name).read_text(encoding='utf-8')
     scripts.extend(re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, re.S | re.I))

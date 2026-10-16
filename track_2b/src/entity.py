@@ -5,14 +5,14 @@ _PROFILE = {"trust": (0.7, 0.0), "fear": (0.3, 0.03), "irritation": (0.3, 0.08)}
 
 def apply_emotion_delta(emo: dict, key: str, delta: int) -> dict:
     """
-    将 delta 叠加到 emo[key]，应用阻尼和背叛放大。
-    返回修改后的 emo（in-place 同时返回）。
+    Add delta to emo[key], applying damping and betrayal amplification.
+    Return the modified emo dictionary (mutated in place and returned).
 
-    阻尼逻辑：
-    - 同向堆叠（delta 与 current 同号，且 current 已离 0 较远）：越接近极值阻尼越强。
-      但事件烈度 magnitude = min(|delta|/20, 1.0) 可穿透阻尼，大事件几乎不受阻尼。
-    - 反向拉回（delta 与 current 异号）：无阻尼，直接入账。
-      trust 反向时额外应用背叛放大：信任越深，背叛伤害越大。
+    Damping rules:
+    - Reinforcement in the same direction (delta and current share a sign and current is far from zero): damping grows near the extremes.
+      Event intensity magnitude = min(|delta|/20, 1.0) can bypass damping; major events are barely damped.
+    - Reversals (delta and current have opposite signs): no damping; apply directly.
+      Negative trust changes also receive betrayal amplification: deeper trust means greater betrayal damage.
     """
     damping, _ = _PROFILE.get(key, (0.5, 0.0))
     current = emo.get(key, 0)
@@ -20,15 +20,15 @@ def apply_emotion_delta(emo: dict, key: str, delta: int) -> dict:
     same_direction = (delta > 0 and current > 0) or (delta < 0 and current < 0)
 
     if same_direction:
-        # 烈度穿透：|delta| >= 20 时 magnitude=1，完全绕过阻尼
+        # Intensity bypass: |delta| >= 20 gives magnitude=1, fully bypassing damping
         magnitude = min(abs(delta) / 20.0, 1.0)
-        saturation = abs(current) / _HARD_MAX  # 0→1，越满越堵
+        saturation = abs(current) / _HARD_MAX  # 0 to 1; greater saturation means greater damping
         effective_damping = damping * saturation * (1.0 - magnitude)
         actual_delta = delta * (1.0 - effective_damping)
     else:
-        # 反向通路：无阻尼，trust 额外背叛放大
+        # Reverse direction: no damping; additional betrayal amplification for trust
         if key == "trust" and current > 0 and delta < 0:
-            # trust=+100 时系数 3.0，trust=+50 时系数 2.0
+            # At trust=+100 factor is 3.0; at trust=+50 factor is 2.0
             betrayal_multiplier = 1.0 + 2.0 * (current / _HARD_MAX)
             actual_delta = delta * betrayal_multiplier
         else:
@@ -41,8 +41,8 @@ def apply_emotion_delta(emo: dict, key: str, delta: int) -> dict:
 
 def tick_emotion_decay(emo: dict) -> dict:
     """
-    对 fear 和 irritation 的正值执行一次自然衰减。
-    trust 永不衰减；负值永不衰减；衰减到 <1 直接归零。
+    Apply one natural decay step to positive fear and irritation.
+    Trust never decays; negative values never decay; magnitudes under 1 become zero.
     """
     for key in ("fear", "irritation"):
         _, decay_rate = _PROFILE[key]
@@ -54,38 +54,38 @@ def tick_emotion_decay(emo: dict) -> dict:
 
 
 if __name__ == "__main__":
-    # 自测：验证四个序列
-    print("=== 自测：情绪状态机 ===")
+    # Self-test: verify five sequences
+    print("=== Self-test: emotion state machine ===")
 
-    # 序列1：trust 从 0 连续 +10，应逐步减速
+    # Sequence 1: repeated +10 from trust=0 should slow down gradually
     emo = {"trust": 0, "fear": 0, "irritation": 0}
-    print("trust 连续 +10×6：", end=" ")
+    print("trust: +10 six times: ", end=" ")
     for _ in range(6):
         apply_emotion_delta(emo, "trust", 10)
         print(emo["trust"], end=" ")
     print()
 
-    # 序列2：trust=+50 收到 +20（救命级），应实入账 ≈+20
+    # Sequence 2: +20 at trust=50 (lifesaving event) should add nearly 20
     emo = {"trust": 50, "fear": 0, "irritation": 0}
     apply_emotion_delta(emo, "trust", 20)
-    print(f"trust=50 + 20(救命级) → {emo['trust']}  (期望 ≈70)")
+    print(f"trust=50 + 20 (lifesaving) -> {emo['trust']}  (expected ~70)")
 
-    # 序列3：trust=+100 收到 -20（重大背叛），应从 +100 砸到 ≈0
+    # Sequence 3: -20 at trust=100 (major betrayal) should drop toward 0
     emo = {"trust": 100, "fear": 0, "irritation": 0}
     apply_emotion_delta(emo, "trust", -20)
-    print(f"trust=100 + (-20)(背叛) → {emo['trust']}  (期望 ≈0)")
+    print(f"trust=100 + (-20) (betrayal) -> {emo['trust']}  (expected ~0)")
 
-    # 序列4：fear=80 衰减 20 tick，应还剩 ≈44
+    # Sequence 4: 20 decay ticks from fear=80 should leave approximately 44
     emo = {"trust": 0, "fear": 80, "irritation": 0}
     for _ in range(20):
         tick_emotion_decay(emo)
-    print(f"fear=80 衰减 20 tick → {emo['fear']}  (期望 ≈44)")
+    print(f"fear=80 after 20 decay ticks -> {emo['fear']}  (expected ~44)")
 
-    # 序列5：irritation=80 衰减 10 tick，期望 ≈34；15 tick 接近消散
+    # Sequence 5: irritation=80 after 10 decay ticks should be ~34; 15 ticks nearly zero
     emo = {"trust": 0, "fear": 0, "irritation": 80}
     for _ in range(10):
         tick_emotion_decay(emo)
-    print(f"irritation=80 衰减 10 tick → {emo['irritation']}  (期望 ≈34)")
+    print(f"irritation=80 after 10 decay ticks -> {emo['irritation']}  (expected ~34)")
     for _ in range(5):
         tick_emotion_decay(emo)
-    print(f"irritation=80 衰减 15 tick → {emo['irritation']}  (期望接近消散)")
+    print(f"irritation=80 after 15 decay ticks -> {emo['irritation']}  (expected near zero)")

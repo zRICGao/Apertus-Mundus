@@ -1,15 +1,45 @@
 {
-  "name": "雾港灯塔 · 公开演示",
-  "worldview": "这是一座虚构的湖港小镇。暴雨将至，旧灯塔失去灯光。玩家是一名受托检查灯塔的修理师，需要与守塔人合作查明原因。叙事遵守已经给出的物件、人物与地点，不凭空制造任务所需的钥匙。",
-  "session_memory": "修理师林舟抵达灯塔门厅，守塔人闻溪正在等待。尚未检查控制台，也未进入灯室。",
+  "name": "Mist Harbor Lighthouse - Public Demo",
+  "worldview": "In a fictional lakeside harbor town, a storm approaches and the old lighthouse has gone dark. The player is a repairer asked to inspect it and work with the keeper to find the cause. Respect established items, characters and places; do not invent keys needed for the task.",
+  "session_memory": "Repairer Lin Zhou has arrived in the lighthouse foyer, where keeper Wen Xi is waiting. The console has not been inspected, and nobody has entered the lantern room.",
   "characters": [
-    {"id": 1, "name": "林舟", "role": "PC", "hp": 100, "san": 100, "inventory": "工具包、手电筒", "personality": "谨慎，擅长机械维修", "status": "active"},
-    {"id": 2, "name": "闻溪", "role": "NPC", "hp": 100, "san": 100, "inventory": "灯室钥匙", "personality": "认真负责的守塔人，愿意分享维修记录", "status": "active"}
+    {
+      "id": 1,
+      "name": "Lin Zhou",
+      "role": "PC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "Toolkit, flashlight",
+      "personality": "Cautious and skilled in mechanical repairs",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Wen Xi",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "Lantern room key",
+      "personality": "A conscientious lighthouse keeper, willing to share maintenance records",
+      "status": "active"
+    }
   ],
   "nodes": [
-    {"id": 1, "name": "灯塔门厅", "summary": "暴雨前，修理师与守塔人会合。", "content": "湖面升起薄雾。你推开灯塔门，闻溪将一盏煤油灯放在桌上。她指着门厅里的控制台说：‘停灯前，这里响过两次短促的警报。维修记录在桌上；去楼上需要我这把钥匙。’你准备先检查控制台，或询问她故障发生时的情况。"}
+    {
+      "id": 1,
+      "name": "Lighthouse foyer",
+      "summary": "The repairer meets the keeper before the storm.",
+      "content": "Mist rises over the lake. You push open the lighthouse door as Wen Xi sets a kerosene lamp on the table. Pointing to the console in the foyer, she says, \"It sounded two short alarms before the light went out. The maintenance records are on the table; you will need my key to go upstairs.\" You can inspect the console or ask what happened when the light failed."
+    }
   ],
   "timelines": [
-    {"id": 1, "label": "灯塔调查队", "current_node_id": 1, "current_room_id": 1, "char_ids": "1", "status": "active"}
+    {
+      "id": 1,
+      "label": "Lighthouse investigation team",
+      "current_node_id": 1,
+      "current_room_id": 1,
+      "char_ids": "1",
+      "status": "active"
+    }
   ]
 }

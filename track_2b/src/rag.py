@@ -1,9 +1,9 @@
 from database import connect_db, atomic
 from providers import generation, parse_object
 """
-Z.R.I.C 引擎 — RAG 知识库模块 (rag.py)
-从 main.py 中抽离的 RAG 相关：切片、embedding、检索、REST API。
-由 main.py 通过 app.include_router(rag_router) 挂载。
+Z.R.I.C Engine — RAG Knowledge Base Module (rag.py)
+RAG functionality extracted from main.py: chunking, embeddings, retrieval, and REST API.
+Mounted by main.py using app.include_router(rag_router).
 """
 
 import math
@@ -18,20 +18,20 @@ from logger import get_logger
 
 _log = get_logger("rag")
 
-rag_router = APIRouter(tags=["RAG 知识库"])
+rag_router = APIRouter(tags=["RAG Knowledge Base"])
 
 # ---------------------------------------------------------
-# 数据库连接（由 main.py 注入）
+# Database connection (injected by main.py)
 # ---------------------------------------------------------
 _db_file: str = ""
 _embed_client = None  # OpenAI-compatible embedding client
 
-# RAG 参数
+# RAG parameters
 RAG_CHUNK_SIZE    = 600
 RAG_CHUNK_OVERLAP = 80
 RAG_TOP_K         = 6
 
-# 硅基流动 Embedding 配置
+# SiliconFlow embedding configuration
 SILICONFLOW_EMB_MODEL = "BAAI/bge-m3"
 
 
@@ -51,10 +51,10 @@ def get_db_connection():
 
 
 # ---------------------------------------------------------
-# 数据库表初始化
+# Database table initialization
 # ---------------------------------------------------------
 def init_rag_tables():
-    """创建 RAG 相关表（幂等）。由 main.py 的 init_db() 调用。"""
+    """Create the RAG tables (idempotently). Called by init_db() in main.py."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS rag_documents (
@@ -65,7 +65,7 @@ def init_rag_tables():
         hidden     INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     )''')
-    # 迁移：为旧数据库添加 hidden 列
+    # Migration: add the hidden column to legacy databases
     try:
         cursor.execute("ALTER TABLE rag_documents ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")
         conn.commit()
@@ -91,7 +91,7 @@ def init_rag_tables():
 
 
 # ---------------------------------------------------------
-# Pydantic 模型
+# Pydantic models
 # ---------------------------------------------------------
 class RagIngestRequest(BaseModel):
     title:        str
@@ -109,17 +109,17 @@ class RagSearchRequest(BaseModel):
     content:    str
     viewer: str = "public"
     timeline_id: int | None = None
-    top_k:      int = 0  # 0 = 使用默认值 RAG_TOP_K*2
+    top_k:      int = 0  # 0 = use default RAG_TOP_K*2
 
 
 # ---------------------------------------------------------
-# 核心函数：切片、embedding、检索
+# Core functions: chunking, embeddings, retrieval
 # ---------------------------------------------------------
 import re
 
 def chunk_text(text, max_size=600, overlap=80):
     if max_size < 100 or max_size > 8000 or overlap < 0 or overlap >= max_size:
-        raise ValueError("切片长度需在100至8000之间，重叠必须小于长度")
+        raise ValueError("Chunk size must be between 100 and 8000, and overlap must be smaller than chunk size")
     text, chunks, start = text.strip(), [], 0
     while start < len(text):
         end=min(start+max_size,len(text))
@@ -142,7 +142,7 @@ def get_embeddings(texts):
             items=sorted(result.data,key=lambda x:x.index)
             vs=[i.embedding for i in items]
             if len(vs)!=len(batch) or any(not v or any(type(x) not in {int,float} or not math.isfinite(x) for x in v) for v in vs):
-                raise ValueError("无效向量")
+                raise ValueError("Invalid vector")
             vectors.extend(vs)
         except Exception:
             vectors.extend([] for _ in batch)
@@ -150,7 +150,7 @@ def get_embeddings(texts):
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    """纯 Python 余弦相似度。"""
+    """Pure-Python cosine similarity."""
     if not a or not b or len(a) != len(b):
         return 0.0
     dot   = sum(x * y for x, y in zip(a, b))
@@ -162,9 +162,9 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 # ---------------------------------------------------------
-# 可见性和向量模型元数据在同一检索中检查
+# Check visibility and embedding-model metadata in the same retrieval
 # ---------------------------------------------------------
-# 全局缓存实例
+# Global cache instance
 
 
 def refresh_vector_cache():
@@ -203,12 +203,12 @@ def vector_valid(row, vector):
 
 
 # ---------------------------------------------------------
-# 核心检索函数（使用向量缓存加速）
+# Core retrieval function (accelerated by the vector cache)
 # ---------------------------------------------------------
 
 
 # ---------------------------------------------------------
-# 混合检索核心（关键词预匹配 + 向量语义检索）
+# Hybrid retrieval core (keyword pre-matching + semantic vector retrieval)
 # ---------------------------------------------------------
 def _hybrid_retrieve(conn,query_text,top_k=6,vec_threshold=.25,*,viewer="gm",timeline_id=None,sources=None,doc_ids=None,candidate_cap=30):
     terms=set(re.findall(r'[a-z0-9_]+',query_text.lower()))
@@ -244,19 +244,19 @@ def _hybrid_retrieve(conn,query_text,top_k=6,vec_threshold=.25,*,viewer="gm",tim
 
 def rag_retrieve(conn, query_text: str, top_k: int = RAG_TOP_K, *, viewer="gm", timeline_id=None,sources=None) -> str:
     """
-    检索最相关的 top_k 个切片，格式化为 prompt 注入文本。
-    使用混合检索：关键词精确匹配置顶 + 向量语义检索补充。
+    Retrieve the top_k most relevant chunks and format them for prompt insertion.
+    Hybrid retrieval prioritizes exact keyword matches and supplements them with semantic vector retrieval.
     """
     results = _hybrid_retrieve(conn, query_text, top_k=top_k,viewer=viewer,timeline_id=timeline_id,sources=sources)
     if not results:
         return ""
     return "\n\n".join(
-        f"[来源：{r['title']}]\n{r['chunk_text']}" for r in results
+        f"[Source: {r['title']}]\n{r['chunk_text']}" for r in results
     )
 
 
 # ---------------------------------------------------------
-# REST API 端点
+# REST API endpoints
 # ---------------------------------------------------------
 @rag_router.get("/api/rag/documents")
 def rag_list_documents():
@@ -278,7 +278,7 @@ def rag_ingest(req: RagIngestRequest):
     try:
         validate_visibility(req.visibility)
         chunks=chunk_text(req.text,req.chunk_size,req.chunk_overlap)
-        if not chunks: raise ValueError("文本不能为空")
+        if not chunks: raise ValueError("Text cannot be empty")
     except ValueError as exc: raise HTTPException(422,str(exc)) from exc
     identity=embedding_identity()
     vectors=get_embeddings(chunks)
@@ -311,12 +311,12 @@ async def rag_upload(
     visibility: str = Form("public"),
     timeline_id: int | None = Form(None),
 ):
-    """上传 .txt / .pdf 文件并导入知识库。"""
+    """Upload a .txt or .pdf file and ingest it into the knowledge base."""
     t0 = time.time()
     filename = file.filename or "unknown"
     raw = await file.read()
 
-    # ── 提取文本 ──────────────────────────────────────────
+    # ── Extract text ──────────────────────────────────────────
     if filename.lower().endswith(".pdf"):
         try:
             import io
@@ -324,22 +324,22 @@ async def rag_upload(
             reader = pypdf.PdfReader(io.BytesIO(raw))
             text = "\n".join(p.extract_text() or "" for p in reader.pages)
         except ImportError:
-            return {"status": "error", "message": "PDF 解析需要安装 pypdf：pip install pypdf"}
+            return {"status": "error", "message": "PDF parsing requires pypdf: pip install pypdf"}
         except Exception as e:
-            return {"status": "error", "message": f"PDF 解析失败：{e}"}
+            return {"status": "error", "message": f"PDF parsing failed: {e}"}
     else:
-        # 尝试 UTF-8，fallback GBK
+        # Try UTF-8, then fall back to GBK
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
             try:
                 text = raw.decode("gbk")
             except Exception:
-                return {"status": "error", "message": "文件编码无法识别，请转为 UTF-8 后重试"}
+                return {"status": "error", "message": "File encoding not recognized; convert the file to UTF-8 and retry"}
 
     text = text.strip()
     if not text:
-        return {"status": "error", "message": "文件内容为空"}
+        return {"status": "error", "message": "File content is empty"}
 
     doc_title  = (title.strip()  or filename)[:100]
     doc_source = (source.strip() or filename)[:200]
@@ -356,14 +356,14 @@ def rag_delete_document(doc_id: int):
     conn.execute("DELETE FROM rag_documents WHERE id=?", (doc_id,))
     refresh_wiki(conn)
     conn.commit(); conn.close()
-    # 删除后刷新缓存
+    # Refresh cache after deletion
     refresh_vector_cache()
     return {"status": "success"}
 
 
 @rag_router.patch("/api/rag/documents/{doc_id}/hidden")
 def rag_toggle_hidden(doc_id: int, hidden: int):
-    """设置文档的隐藏状态（hidden=0 公开，hidden=1 隐藏）。"""
+    """Set document visibility (hidden=0 public, hidden=1 hidden)."""
     conn = get_db_connection()
     conn.execute("UPDATE rag_documents SET hidden=? WHERE id=?", (1 if hidden else 0, doc_id))
     refresh_wiki(conn)
@@ -374,7 +374,7 @@ def rag_toggle_hidden(doc_id: int, hidden: int):
 
 @rag_router.post("/api/rag/search")
 def rag_search(req: RagSearchRequest):
-    """独立检索接口，供前端测试知识库效果。使用混合检索。"""
+    """Standalone retrieval endpoint for frontend knowledge-base testing. Uses hybrid retrieval."""
     query = f"{req.scene_name} {req.content}"
     conn = get_db_connection()
     effective_top_k = req.top_k if req.top_k > 0 else RAG_TOP_K * 2
@@ -387,7 +387,7 @@ def rag_search(req: RagSearchRequest):
 def rag_reindex():
     from fastapi import HTTPException
     if _embed_client is None:
-        return {'status':'skipped','message':'尚未启用向量服务，关键词检索仍可用'}
+        return {'status':'skipped','message':'Vector service is not enabled; keyword retrieval remains available'}
     conn=get_db_connection()
     try:
         rows=conn.execute('SELECT id,doc_id,chunk_text FROM rag_chunks ORDER BY id').fetchall()
@@ -397,15 +397,15 @@ def rag_reindex():
         if not rows:
             return {'status':'success','embedded':0}
         if not complete_vectors(vectors,len(rows)):
-            raise HTTPException(503,'向量服务未返回完整有效结果，保留原索引')
+            raise HTTPException(503,'Vector service did not return complete valid results; existing index preserved')
         with atomic(conn):
             if identity!=embedding_identity():
-                raise HTTPException(409,'向量服务配置已变化，请重试')
+                raise HTTPException(409,'Vector service configuration changed; retry')
             if conn.execute("SELECT value FROM system_state WHERE key='world_epoch'").fetchone()[0]!=epoch:
-                raise HTTPException(409,'世界已更换，请重试')
+                raise HTTPException(409,'The world was replaced; retry')
             current=conn.execute('SELECT id,doc_id,chunk_text FROM rag_chunks ORDER BY id').fetchall()
             if [tuple(r) for r in current]!=[tuple(r) for r in rows]:
-                raise HTTPException(409,'资料已变化，未发布过期向量')
+                raise HTTPException(409,'Source material changed; stale vectors were not published')
             for row,vector in zip(rows,vectors):
                 conn.execute('UPDATE rag_chunks SET embedding=?,embedding_meta=? WHERE id=? AND chunk_text=?',
                              (json.dumps(vector),vector_metadata(row['chunk_text'],vector),row['id'],row['chunk_text']))

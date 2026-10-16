@@ -9,7 +9,7 @@ from providers import generation, parse_object
 from world import (create_entity, encode, entity_candidates, entity_state_context, link_character,
                    record_event, refresh_wiki, resolve_entity, visible, now)
 
-entity_router = APIRouter(tags=["世界实体"])
+entity_router = APIRouter(tags=["World Entities"])
 _db_file = ""
 
 
@@ -70,38 +70,38 @@ def get_world_entities_text(conn, *search_texts, viewer="gm", timeline_id=None):
             sd = {"desc": row["state_desc"]}
         if not isinstance(sd, dict):
             sd = {"desc": row["state_desc"]}
-        desc = "尚未登场" if row["status"] == "pending" and viewer != "gm" else sd.get("desc", "")
+        desc = "Not yet introduced" if row["status"] == "pending" and viewer != "gm" else sd.get("desc", "")
         line = f"- [entity_uid={row['uid']}] {row['name']} ({row['entity_type']}) | {row['location']} | {row['status']} | {desc}"
-        line += f" | 别名:{row['aliases']}"
+        line += f" | Aliases:{row['aliases']}"
         if sd.get("emotion"):
-            line += " | 情绪:" + encode(sd["emotion"])
+            line += " | Emotions:" + encode(sd["emotion"])
         states = entity_state_context(conn, row["uid"], viewer, timeline_id)
         if states:
-            line += "\n  动态状态:" + encode(states)
+            line += "\n  Dynamic states:" + encode(states)
         memories = [r["content"] for r in conn.execute("SELECT * FROM entity_memories WHERE entity_uid=? ORDER BY id DESC LIMIT 30", (row["uid"],))
                     if allowed(r["visibility"], r['timeline_id'], viewer, timeline_id)]
         # Legacy memories have no visibility metadata; expose only to GM.
         if viewer == "gm" and timeline_id is None:
             memories += sd.get("memory", [])[-3:]
         if memories:
-            line += "\n  已知记忆:" + " / ".join(memories[:6])
+            line += "\n  Known memories:" + " / ".join(memories[:6])
         lines.append(line)
     return "\n".join(lines)
 
 
-def extract_entity_proposals(conn, scene_name, content, player_action, result_text, timeline_label="主线"):
+def extract_entity_proposals(conn, scene_name, content, player_action, result_text, timeline_label="Main timeline"):
     context = get_world_entities_text(conn, scene_name, content, player_action)
     raw = generation.generate(
-        "你是实体状态追踪器。只抽取已经确认发生的结果。已有实体必须输出已有 entity_uid，"
-        "不要仅凭同名或外貌合并人物。新命名实体输出 new:true，不自造永久ID。"
-        "仅返回JSON：{\"entities\":[{\"entity_uid\":\"已有ID（新实体省略）\",\"new\":false,"
-        "\"name\":\"名称\",\"entity_type\":\"npc/location/event/item\",\"location\":\"地点\","
-        "\"status\":\"active/dead/moved/resolved/pending\",\"description\":\"状态描述\",\"aliases\":[]}]}\n" + context,
+        "You are an entity-state tracker. Extract only outcomes that have been confirmed. Existing entities must use their existing entity_uid; "
+        "do not merge people based only on the same name or appearance. For newly named entities, output new:true and do not invent permanent IDs."
+        "Return JSON only: {\"entities\":[{\"entity_uid\":\"Existing ID (omit for a new entity)\",\"new\":false,"
+        "\"name\":\"Name\",\"entity_type\":\"npc/location/event/item\",\"location\":\"Location\","
+        "\"status\":\"active/dead/moved/resolved/pending\",\"description\":\"State description\",\"aliases\":[]}]}\n" + context,
         encode({"scene": scene_name, "content": content, "action": player_action, "result": result_text}),
         json_mode=True, temperature=.1, max_tokens=1800)
     entities = parse_object(raw).get("entities", [])
     if not isinstance(entities, list) or any(not isinstance(e, dict) for e in entities):
-        raise ValueError("实体提取结果无效")
+        raise ValueError("Invalid entity extraction result")
     return entities
 
 
@@ -121,7 +121,7 @@ def apply_entity_proposals(conn, entities, event_id=None):
                 sd["desc"] = proposal.get("description", proposal.get("state_desc", ""))
             status = proposal.get("status", row["status"])
             if status not in {"active", "dead", "moved", "resolved", "pending"}:
-                raise ValueError("实体状态无效")
+                raise ValueError("Invalid entity status")
             aliases = list(dict.fromkeys(json.loads(row["aliases"] or "[]") + proposal.get("aliases", [])))
             name = proposal.get('name',row['name'])
             if name != row['name'] and row['name'] not in aliases: aliases.append(row['name'])
@@ -131,13 +131,13 @@ def apply_entity_proposals(conn, entities, event_id=None):
             conn.execute('UPDATE characters SET name=? WHERE entity_uid=?',(name,uid))
         elif proposal.get("new") is True:
             if proposal.get('entity_type', 'npc') == 'npc':
-                raise ValueError('自动新增NPC必须先经过角色审核并使用新角色声明')
+                raise ValueError('Automatically created NPCs must go through character review and use a new-character declaration')
             uid = create_entity(conn, name=proposal["name"], entity_type=proposal.get("entity_type", "npc"),
                 state_desc=encode({"desc": proposal.get("description", proposal.get("state_desc", ""))}),
                 aliases=proposal.get("aliases", []), location=proposal.get("location", ""),
                 status=proposal.get("status", "active"), visibility=proposal.get("visibility", "public"))
         else:
-            raise ValueError("已有实体更新必须提供 entity_uid，新实体必须显式标记 new:true")
+            raise ValueError("Existing entity updates must provide entity_uid; new entities must explicitly specify new:true")
         updated.append(uid)
     return updated
 
@@ -172,7 +172,7 @@ def upsert_world_entity(req: WorldEntityUpsertRequest):
             uid = req.uid
         else:
             uid = create_entity(conn, **{k: v for k, v in req.model_dump().items() if k not in {"uid", "last_seen_by"}})
-        record_event(conn, "entity_edit", f"登记实体 {req.name}", {"entity_uid": uid})
+        record_event(conn, "entity_edit", f"Register entity {req.name}", {"entity_uid": uid})
         refresh_wiki(conn)
         return {"status": "success", "entity_uid": uid}
 
@@ -182,16 +182,16 @@ def delete_world_entity(entity_id: int):
     with safe_db() as conn, atomic(conn):
         row = conn.execute("SELECT uid FROM world_entities WHERE id=?", (entity_id,)).fetchone()
         if not row:
-            raise HTTPException(404, "实体不存在")
+            raise HTTPException(404, "Entity does not exist")
         if conn.execute("SELECT id FROM characters WHERE entity_uid=?", (row[0],)).fetchone():
-            raise HTTPException(409, "该实体仍关联角色；可将状态设为 resolved")
+            raise HTTPException(409, "This entity remains linked to a character; you may set its status to resolved")
         conn.execute("DELETE FROM entity_states WHERE entity_uid=? OR target_uid=?", (row[0], row[0]))
         conn.execute("DELETE FROM entity_memories WHERE entity_uid=?", (row[0],))
         conn.execute('DELETE FROM entity_relations WHERE subject_uid=? OR object_uid=?',(row[0],row[0]))
         conn.execute('DELETE FROM npc_chat_logs WHERE entity_uid=?',(row[0],))
         conn.execute("DELETE FROM world_entities WHERE id=?", (entity_id,))
         conn.execute("DELETE FROM wiki_pages WHERE entity_uid=?", (row[0],))
-        record_event(conn, "entity_remove", "移除实体", {"entity_uid": row[0]})
+        record_event(conn, "entity_remove", "Remove entity", {"entity_uid": row[0]})
         refresh_wiki(conn)
     return {"status": "success"}
 
@@ -200,7 +200,7 @@ def delete_world_entity(entity_id: int):
 def set_entity_room(entity_id: int, room_id: int | None = None):
     with safe_db() as conn, atomic(conn):
         conn.execute("UPDATE world_entities SET room_id=? WHERE id=?", (room_id, entity_id))
-        record_event(conn, "entity_move", "更新实体位置", {"id": entity_id, "room_id": room_id})
+        record_event(conn, "entity_move", "Update entity location", {"id": entity_id, "room_id": room_id})
         refresh_wiki(conn)
     return {"status": "success"}
 
@@ -210,7 +210,7 @@ def get_entity_persona(entity_id: int):
     with safe_db() as conn:
         row = conn.execute("SELECT * FROM world_entities WHERE id=?", (entity_id,)).fetchone()
         if not row:
-            raise HTTPException(404, "实体不存在")
+            raise HTTPException(404, "Entity does not exist")
         try:
             sd = json.loads(row["state_desc"] or "{}")
         except ValueError:
@@ -223,7 +223,7 @@ def update_entity_persona(entity_id: int, req: UpdatePersonaRequest):
     with safe_db() as conn, atomic(conn):
         row = conn.execute("SELECT * FROM world_entities WHERE id=?", (entity_id,)).fetchone()
         if not row:
-            raise HTTPException(404, "实体不存在")
+            raise HTTPException(404, "Entity does not exist")
         try:
             sd = json.loads(row["state_desc"] or "{}")
         except ValueError:
@@ -235,6 +235,6 @@ def update_entity_persona(entity_id: int, req: UpdatePersonaRequest):
                 value = old
             sd[key] = value
         conn.execute("UPDATE world_entities SET state_desc=?,updated_at=? WHERE id=?", (encode(sd), now(), entity_id))
-        record_event(conn, "persona_edit", "更新人物档案", {"entity_uid": row["uid"]})
+        record_event(conn, "persona_edit", "Update character profile", {"entity_uid": row["uid"]})
         refresh_wiki(conn)
     return {"status": "success"}

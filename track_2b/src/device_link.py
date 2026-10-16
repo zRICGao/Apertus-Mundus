@@ -115,11 +115,11 @@ class DeviceAccessMiddleware:
             if not paired and scope.get('path') != '/join':
                 if scope['type'] == 'websocket':
                     return await send({'type': 'websocket.close', 'code': 1008})
-                response = HTMLResponse('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+                response = HTMLResponse('<!doctype html><html lang="en"><meta charset="utf-8">'
                     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-                    '<title>连接 Apertus Mundus</title><body style="font:18px system-ui;padding:32px;line-height:1.8">'
-                    '<h1>请重新扫码连接</h1><p>在电脑端打开「手机连接与同步」，开启连接后扫描二维码。'
-                    '连接关闭或电脑服务重启后，需要重新扫码。</p></body></html>', status_code=403,
+                    '<title>Connect to Apertus Mundus</title><body style="font:18px system-ui;padding:32px;line-height:1.8">'
+                    '<h1>Please scan the QR code again to connect</h1><p>On your computer, open "Mobile Connection and Sync", enable pairing, then scan the QR code.'
+                    'If pairing is disabled or the computer service restarts, scan again.</p></body></html>', status_code=403,
                     headers={'Cache-Control': 'no-store'})
                 return await response(scope, receive, send)
 
@@ -147,22 +147,22 @@ def create_router(session, current_scene):
 
     def local_only(request):
         if not is_local(request.client.host if request.client else ''):
-            raise HTTPException(403, '请在运行服务的电脑上管理连接')
+            raise HTTPException(403, 'Manage pairing on the computer running the service')
         origin = request.headers.get('origin')
         if origin and urlsplit(origin).netloc != request.url.netloc:
-            raise HTTPException(403, '请从本机连接页面操作')
+            raise HTTPException(403, 'Use the connection page on the host computer')
         if request.headers.get('sec-fetch-site') == 'cross-site':
-            raise HTTPException(403, '请从本机连接页面操作')
+            raise HTTPException(403, 'Use the connection page on the host computer')
 
     def link_info(request, address='', view='workbench'):
         local_only(request)
         if container_local_mode():
-            raise HTTPException(409, '当前只开放本机工作台。手机连接请使用桌面启动方式。')
+            raise HTTPException(409, 'Only the local workbench is available. To connect a phone, use desktop launch mode.')
         addresses = lan_addresses()
         if address and address not in addresses:
-            raise HTTPException(400, '所选网络地址已变化，请刷新连接页')
+            raise HTTPException(400, 'The selected network address has changed; refresh the connection page')
         if view not in ('workbench', 'phone'):
-            raise HTTPException(400, '未知的手机入口')
+            raise HTTPException(400, 'Unknown mobile entry point')
         host = address or next(iter(addresses), '')
         port = request.url.port or 8000
         with session.lock:
@@ -186,9 +186,9 @@ def create_router(session, current_scene):
     def enable(request: Request):
         local_only(request)
         if container_local_mode():
-            raise HTTPException(409, '当前只开放本机工作台。手机连接请使用桌面启动方式。')
+            raise HTTPException(409, 'Only the local workbench is available. To connect a phone, use desktop launch mode.')
         if not lan_addresses():
-            raise HTTPException(409, '没有找到局域网地址。请连接 Wi-Fi 或网线后重试。')
+            raise HTTPException(409, 'No LAN address found. Connect via Wi-Fi or Ethernet and try again.')
         session.enable()
         return link_info(request)
 
@@ -202,7 +202,7 @@ def create_router(session, current_scene):
     def qr(request: Request, address: str = '', view: str = 'workbench'):
         info = link_info(request, address, view)
         if not info['url']:
-            raise HTTPException(409, '请先开启手机连接')
+            raise HTTPException(409, 'Enable phone pairing first')
         import qrcode
         import qrcode.image.svg
         image = qrcode.make(info['url'], image_factory=qrcode.image.svg.SvgPathImage,
@@ -214,7 +214,7 @@ def create_router(session, current_scene):
     @router.get('/join')
     def join(token: str = '', view: str = 'workbench'):
         if not session.allows(token):
-            raise HTTPException(403, '连接已失效，请在电脑上重新开启连接并扫码')
+            raise HTTPException(403, 'Pairing has expired. Enable it on the computer and scan again')
         target = '/phone.html' if view == 'phone' else '/index.html?resume=1'
         response = RedirectResponse(target, status_code=303, headers={
             'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})

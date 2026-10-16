@@ -8,7 +8,7 @@ window.WorldNPCReview = (() => {
         return el;
     };
     function dialog(title) {
-        if (opened) throw new Error('请先完成当前角色审核。');
+        if (opened) throw new Error('Complete the current character review first.');
         opened = true;
         const previous = document.activeElement;
         const panel = element('dialog', undefined, 'npc-review-dialog');
@@ -28,13 +28,13 @@ window.WorldNPCReview = (() => {
     function resolve(review) {
         return new Promise(resolve => {
             const maps=review.entries.some(e=>e.kind==='map');
-            const {panel, close} = dialog(maps ? (review.entries.some(e=>e.kind!=='map') ? '核对世界变化' : '核对地图变化') : '核对登场人物');
+            const {panel, close} = dialog(maps ? (review.entries.some(e=>e.kind!=='map') ? 'Review world changes' : 'Review map changes') : 'Review introduced characters');
             const intro = element('p', review.message);
             const list = element('div', undefined, 'npc-review-list');
             const error = element('p', '', 'npc-review-error'); error.setAttribute('role', 'alert');
             const actions = element('div', undefined, 'npc-review-actions');
-            const cancel = element('button', '取消本次生成', 'btn btn-ghost');
-            const submit = element('button', '应用选择并继续', 'btn btn-accent');
+            const cancel = element('button', 'Cancel this generation', 'btn btn-ghost');
+            const submit = element('button', 'Apply choices and continue', 'btn btn-accent');
             actions.append(cancel, submit); panel.append(intro, list, error, actions);
             const controls = new Map();
             let busy = false, key = WorldAPI.operationKey(), previousChoices = '';
@@ -45,37 +45,37 @@ window.WorldNPCReview = (() => {
                 review = data; intro.textContent = data.message; list.replaceChildren(); controls.clear();
                 for (const item of data.entries) {
                     const section = element('fieldset');
-                    section.append(element('legend', `分支 ${item.branch + 1} · ${item.name}`));
+                    section.append(element('legend', `Branch ${item.branch + 1} · ${item.name}`));
                     const isMap=item.kind==='map';
-                    section.append(element('p', item.description || (isMap ? '尚无区域描述' : '尚无完整档案')));
-                    section.append(element('p', item.reason || (isMap ? '请核对地点身份与必要性。' : '请核对是否需要登记此人物。'), 'npc-review-reason'));
+                    section.append(element('p', item.description || (isMap ? 'No area description available' : 'No full profile available')));
+                    section.append(element('p', item.reason || (isMap ? "Review the location's identity and whether it is needed." : 'Review whether this character needs to be registered.'), 'npc-review-reason'));
                     const select = element('select'); select.required = true;
-                    select.setAttribute('aria-label', `${item.name}的处理方式`);
+                    select.setAttribute('aria-label', `${item.name} handling option`);
                     const add = (value, label) => {const opt = element('option', label); opt.value = value; select.append(opt);};
-                    add('', '请选择处理方式');
+                    add('', 'Select how to handle this');
                     for (const candidate of item.candidates || []) {
                         if(isMap && !Object.hasOwn(item.options,candidate.choice)) continue;
                         add(isMap ? candidate.choice : 'reuse:' + candidate.entity_uid,
-                            `${isMap && candidate.choice.startsWith('reveal:') ? '揭示已有区域' : '复用'}：${candidate.name} · ${candidate.location || '位置未记录'}${isMap ? (candidate.connection ? ' · 有登记通道' : ' · 无直接通道') : ''}`);
+                            `${isMap && candidate.choice.startsWith('reveal:') ? 'Reveal existing area' : 'Reuse'}：${candidate.name} · ${candidate.location || 'Location not recorded'}${isMap ? (candidate.connection ? ' · Recorded passage exists' : ' · No direct passage') : ''}`);
                     }
                     if(!isMap) for (const other of data.entries)
                         if (other.kind!=='map' && other.branch === item.branch && other.key < item.key)
-                            add('same:' + other.ref, `同一人物：本分支的${other.name}`);
-                    if(!isMap || Object.hasOwn(item.options,'create')) add('create',isMap ? '明确登记一个独立新区域' : '明确作为不同的新人物登记');
-                    add('omit',isMap ? '取消这项地图变化' : '取消新增／仅作为背景描写');
+                            add('same:' + other.ref, `Same person as this branch's ${other.name}`);
+                    if(!isMap || Object.hasOwn(item.options,'create')) add('create',isMap ? 'Explicitly register a distinct new area' : 'Explicitly register as a different new character');
+                    add('omit',isMap ? 'Cancel this map change' : 'Cancel addition / background description only');
                     if (item.decision !== 'unknown') select.value = item.decision;
                     section.append(select);
                     if(isMap && item.mode==='new') {
                         const arrival=element('select'); arrival.required=true;
-                        arrival.setAttribute('aria-label',`${item.name}是否进入`);
-                        for(const [value,label] of [['','请选择队伍最终位置'],['stay','仅发现区域，队伍保持原位'],['enter','本分支实际进入目标区域']]) {
+                        arrival.setAttribute('aria-label',`${item.name}: enter destination?`);
+                        for(const [value,label] of [['',"Choose the team's final position"],['stay','Discover area only; the team stays in place'],['enter','The team enters the destination in this branch']]) {
                             const option=element('option',label); option.value=value; arrival.append(option);
                         }
                         if(item.arrival!=='unknown') arrival.value=item.arrival;
                         select.addEventListener('change',()=>{if(select.value==='omit') arrival.value='stay';});
                         section.append(arrival); controls.set(item.key+':arrival',arrival);
                     }
-                    const details = element('details'); details.append(element('summary',isMap ? '查看已有地点资料' : '查看已有身份资料'));
+                    const details = element('details'); details.append(element('summary',isMap ? 'View existing location details' : 'View existing identity details'));
                     for (const candidate of item.candidates || []) {
                         details.append(element('strong', candidate.name));
                         details.append(element('p', [candidate.aliases?.join('、'), candidate.description].filter(Boolean).join(' · ')));
@@ -97,16 +97,16 @@ window.WorldNPCReview = (() => {
                 previousChoices = signature;
                 busy = true; cancel.disabled = submit.disabled = true;
                 for (const select of controls.values()) select.disabled = true;
-                submit.textContent = '正在核对候选…'; error.textContent = '';
+                submit.textContent = 'Reviewing candidates...'; error.textContent = '';
                 try {
                     const result = await WorldAPI.json(`/api/ai/npc-reviews/${review.review_id}/resolve`, {choices, operation_key:key});
                     if (result.status === 'review_required') {render(result); key = WorldAPI.operationKey(); previousChoices = '';}
                     else finish(result);
-                } catch (e) {error.textContent = e.message + ' 选择已保留，可重试或取消。';}
+                } catch (e) {error.textContent = e.message + ' Choices have been preserved; retry or cancel.';}
                 finally {
                     busy = false; cancel.disabled = submit.disabled = false;
                     for (const select of controls.values()) select.disabled = false;
-                    submit.textContent = '应用选择并继续';
+                    submit.textContent = 'Apply choices and continue';
                 }
             };
         });
@@ -114,15 +114,15 @@ window.WorldNPCReview = (() => {
     async function handle(result) {return result.status === 'review_required' ? resolve(result) : result;}
     function confirmAdditions(additions) {
         return new Promise(resolve => {
-            const {panel, close} = dialog(`确认新增 ${additions.length} 名角色`);
-            panel.append(element('p', '此分支会将以下人物登记到世界。请核对身份与新增理由。'));
+            const {panel, close} = dialog(`Confirm addition of ${additions.length} characters`);
+            panel.append(element('p', 'This branch will register the following people in the world. Review their identities and the reasons for adding them.'));
             const list = element('ul', undefined, 'npc-review-list');
             for (const item of additions) {
                 const li = element('li'); li.append(element('strong', item.name), element('p', item.reason)); list.append(li);
             }
             const actions = element('div', undefined, 'npc-review-actions');
-            const cancel = element('button', '返回', 'btn btn-ghost');
-            const confirm = element('button', '确认这些新增人物', 'btn btn-accent');
+            const cancel = element('button', 'Back', 'btn btn-ghost');
+            const confirm = element('button', 'Confirm these new characters', 'btn btn-accent');
             const finish = value => {close(); resolve(value);};
             cancel.onclick = () => finish(false); confirm.onclick = () => finish(true);
             panel.addEventListener('cancel', event => {event.preventDefault(); finish(false);});

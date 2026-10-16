@@ -15,11 +15,11 @@ def cached(req):
             return None
         fx = json.loads(row[0])
         if fx.get('timeline_id') != req.timeline_id:
-            raise HTTPException(409, '候选属于其他队伍')
+            raise HTTPException(409, 'Candidate belongs to another team')
         if fx.get('phase') != 'EXPANDED':
             return None
         if fx.get('state_token') != state_token(conn):
-            raise HTTPException(409, '世界已变化，请重新推演')
+            raise HTTPException(409, 'World changed; regenerate')
         from npc_review import check_commit
         check_commit(conn, fx, confirmed=True)
         return fx['expanded_content']
@@ -31,11 +31,11 @@ def claim(req, token, identity):
     with agent.safe_db() as conn, atomic(conn):
         row = conn.execute('SELECT payload FROM pending_effects WHERE node_id=?', (req.node_id,)).fetchone()
         if not row or row[0] != identity or state_token(conn) != token:
-            raise HTTPException(409, '候选或世界已变化')
+            raise HTTPException(409, 'Candidate or world has changed')
         key = f'expand:{req.node_id}:{token}'
         previous = conn.execute('SELECT id,lease_until FROM npc_generation_reviews WHERE operation_key=?', (key,)).fetchone()
         if previous and previous['lease_until'] > time.time():
-            raise HTTPException(409, '该分支正在扩写，请稍后重试')
+            raise HTTPException(409, 'This branch is being expanded; please try again later')
         lease = time.time()+600
         identifier = previous['id'] if previous else uuid.uuid4().hex
         if previous:
@@ -50,7 +50,7 @@ def check(conn, claim):
     if claim is not None:
         row = conn.execute('SELECT lease_until FROM npc_generation_reviews WHERE id=?', (claim[0],)).fetchone()
         if not row or row[0] != claim[1]:
-            raise HTTPException(409, '扩写处理权已变化，本次结果未保存')
+            raise HTTPException(409, 'Expansion lease changed; this result was not saved')
 
 
 def release(claim):

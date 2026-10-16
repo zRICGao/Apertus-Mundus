@@ -32,8 +32,7 @@ then serves Apertus v1.5 8B on an NVIDIA GPU. Build and preparation require inte
 access. A fully disconnected runtime has not been validated. The default `make run`
 uses the supplied Apertus endpoint and local supporting models.
 
-The interface and demo content are currently primarily Chinese. The submission
-README and technical report are in English. Docker Compose configuration and the
+The interface, bundled demo and submission documentation are in English. Docker Compose configuration and the
 isolated offline application smoke test are checked for this layout; full concurrent
 model inference on the target hardware still needs validation. Run `make smoke`
 for isolated mocked inference or `make smoke-live` for real configured services.
@@ -44,6 +43,7 @@ The demo video remains an outstanding submission deliverable.
 The latest [submission validation](docs/SUBMISSION_VALIDATION.md) records the checks
 and remaining gaps. Run the included summary-boundary regressions from the repository
 root with `python -m unittest discover -s track_2b/tests -v`.
+Run the English frontend regressions with `node --test track_2b/tests/test_english_frontend.cjs`.
 
 The `data/` folder contains only the original CC0 fictional demo. Private campaign
 data and credentials are excluded. Model licences are retained with the downloaded

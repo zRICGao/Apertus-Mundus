@@ -19,13 +19,13 @@ def prepare_dynamic(request):
     import agent as a
     request_input = request.model_dump()
     if request.action_type not in {'auto','action','dialogue','mixed'}:
-        raise HTTPException(422,'未知行动类型')
+        raise HTTPException(422,'Unknown action type')
     if not request.player_action.strip():
-        raise HTTPException(422,'请先填写行动')
+        raise HTTPException(422,'Enter an action first')
     with a.safe_db() as conn:
         node=conn.execute('SELECT * FROM nodes WHERE id=?',(request.current_node_id,)).fetchone()
-        if node is None: raise HTTPException(404,'场景不存在')
-        if node['is_draft']: raise HTTPException(409,'请先确认当前分支，再继续推演')
+        if node is None: raise HTTPException(404,'Scene does not exist')
+        if node['is_draft']: raise HTTPException(409,'Confirm the current branch before continuing the simulation')
         spatial = spatial_context(conn, request.timeline_id)
         # Scene text supplied by clients is not an authoritative fact source.
         request.scene_name=node['name'] or ''
@@ -40,14 +40,14 @@ def prepare_dynamic(request):
                 result=resolve_mention(conn,mention,request.player_action,timeline_id=request.timeline_id)
                 if result['status']!='resolved':
                     return {'clarification':{**result,'status':'clarification_required','mention':mention,
-                        'question':result.get('question') or f'「{mention}」指的是谁或什么？'}}
+                        'question':result.get('question') or f'「{mention}" refer to?'}}
                 request.resolved_entities[mention]=result['entity_uid']
         context=a.build_system_context(conn,request.scene_name,request.content,request.player_action,
                      timeline_id=request.timeline_id,sources=route['sources'])
         token=state_token(conn)
     system=summary_prompt(context,request.action_type,spatial,
              gm_correction=request.gm_correction,mood=request.mood,force_thrust=request.force_thrust)
-    user='已确认指代：'+encode(request.resolved_entities)+'\n'+encode({'场景':request.scene_name,'正文':request.content,'行动':request.player_action})
+    user='Resolved references: '+encode(request.resolved_entities)+'\n'+encode({'Scene':request.scene_name,'Content':request.content,'Action':request.player_action})
     return {'system':system,'user':user,'token':token,'request_input':request_input,'spatial_context':spatial}
 
 
@@ -151,7 +151,7 @@ def prepare_expansion(req):
         token=state_token(conn)
         if fx.get('state_token')!=token: raise HTTPException(409,'World changed; regenerate this candidate')
         if fx.get('summary_contract') and fx.get('phase') not in {'READY_TO_EXPAND', 'EXPANDED'}:
-            raise HTTPException(409, '请先准备并审核所选分支')
+            raise HTTPException(409, 'Prepare and review the selected branch first')
         from npc_review import check_commit
         check_commit(conn, fx, confirmed=True)  # Approval validity only; bulk confirmation belongs to commit.
         req.scene_name=fx.get('scene_name',''); req.player_action=fx.get('player_action','')
@@ -160,9 +160,9 @@ def prepare_expansion(req):
         context,action_type=a._build_fx_context(pending)
         context='Candidate outcomes only; these effects have NOT happened.\n'+context
         if fx.get('review_decisions'):
-            context += '\n【所选分支的最终审核决定，优先于原摘要；正文必须按此展开】\n' + encode(fx['review_decisions'])
+            context += '\n[Final approved decisions for the selected branch; override the initial summary and must be reflected in the prose]\n' + encode(fx['review_decisions'])
         if fx.get('spatial_context', {}).get('mode') == 'text':
-            context += '\n文字空间模式：允许叙事转场，不声称地图坐标、房间ID或通道已经验证。'
+            context += '\nText-only spatial mode: narrative transitions are allowed; do not claim that map coordinates, room IDs, or passages have been validated.'
         system,user=a._build_expand_prompts(conn,req,node['name'],fx['skeleton'],context,action_type)
         identity=pending['payload']
     return system,user,token,identity
@@ -223,7 +223,7 @@ def expand(req, stream=False):
 def npc_entity(conn, request):
     try:
         entity=resolve_entity(conn,uid=request.entity_uid,name=request.npc_name,entity_type='npc')
-        if entity['entity_type']!='npc': raise ValueError('目标不是NPC')
+        if entity['entity_type']!='npc': raise ValueError('Target is not an NPC')
         return entity
     except ValueError as exc: raise HTTPException(422,str(exc)) from exc
 
@@ -242,9 +242,9 @@ def npc_chat(request):
         states=entity_state_context(conn,entity['uid'],viewer,request.timeline_id)
         # Never inject omniscient world lore, other NPCs' memories, or other parties' chats.
         render=prose_renderer(conn, request.timeline_id)
-        system='你扮演'+entity['name']+'，与玩家私聊。只知道自己的档案、状态和记忆；未知事情自然表达不确定。不能改变世界状态。'+NARRATIVE_RULE+'\n'+encode({
-             '档案':sd.get('desc',''),'情绪':sd.get('emotion',{}),'状态':states,'记忆':memories+sd.get('memory',[]),
-             '近期对话':[dict(r) for r in reversed(history)]})
+        system='You are portraying '+entity['name']+', chatting privately with the player. You know only your profile, states, and memories; express uncertainty naturally about unknown facts. Do not change world state.'+NARRATIVE_RULE+'\n'+encode({
+             'Profile':sd.get('desc',''),'Emotion':sd.get('emotion',{}),'State':states,'Memory':memories+sd.get('memory',[]),
+             'Recent dialogue':[dict(r) for r in reversed(history)]})
     return StreamingResponse(prose_stream(a._stream_ai_sse(system,request.player_message,temperature=.7,max_tokens=1000), render),media_type='text/event-stream')
 
 
@@ -255,22 +255,22 @@ def npc_commit(request):
         entity=npc_entity(conn,request); uid=entity['uid']; token=state_token(conn)
         existing=conn.execute('SELECT id FROM world_events WHERE operation_key=?',(f'npcchat:{request.operation_key}',)).fetchone()
         if existing: return {'status':'already_applied','event_id':existing[0]}
-        system='根据已发生对话提取该NPC的情绪变化和第一人称记忆。返回JSON：{"trust_delta":0,"fear_delta":0,"irritation_delta":0,"memory":"记忆"}。不编造。\n'+entity['state_desc']
-    raw=a._call_ai(system,encode({'玩家':request.player_message,'NPC':request.npc_reply}),temperature=.1,max_tokens=600)
+        system='Extract the emotion changes and first-person memory of this NPC from the dialogue. Return JSON: {"trust_delta":0,"fear_delta":0,"irritation_delta":0,"memory":"memory"}. Do not invent details.\n'+entity['state_desc']
+    raw=a._call_ai(system,encode({'Player':request.player_message,'NPC':request.npc_reply}),temperature=.1,max_tokens=600)
     parsed=parse_object(raw)
-    deltas={key:integer(parsed.get(key+'_delta',0),'情绪变化') for key in ('trust','fear','irritation')}
-    if any(abs(v)>25 for v in deltas.values()): raise HTTPException(422,'情绪变化超出范围')
+    deltas={key:integer(parsed.get(key+'_delta',0),'Emotion change') for key in ('trust','fear','irritation')}
+    if any(abs(v)>25 for v in deltas.values()): raise HTTPException(422,'Emotion change is out of range')
     memory=parsed.get('memory','')
-    if not isinstance(memory,str): raise HTTPException(422,'记忆必须是文本')
+    if not isinstance(memory,str): raise HTTPException(422,'Memory must be text')
     with a.safe_db() as conn, atomic(conn):
         existing=conn.execute('SELECT id FROM world_events WHERE operation_key=?',(f'npcchat:{request.operation_key}',)).fetchone()
         if existing: return {'status':'already_applied','event_id':existing[0]}
-        if state_token(conn)!=token: raise HTTPException(409,'世界已更新，请重试保存对话')
+        if state_token(conn)!=token: raise HTTPException(409,'World has been updated; try saving the dialogue again')
         entity=resolve_entity(conn,uid=uid); sd=a._parse_state_desc(entity['state_desc']); emo=sd['emotion']
         a.tick_emotion_decay(emo)
         for key,delta in deltas.items(): a.apply_emotion_delta(emo,key,delta)
         sd['emotion']=emo
-        event=record_event(conn,'npc_chat',f"{entity['name']}的已确认私聊",{'entity_uid':uid},request.timeline_id,f'npcchat:{request.operation_key}')
+        event=record_event(conn,'npc_chat',f"{entity['name']}'s confirmed private chat",{'entity_uid':uid},request.timeline_id,f'npcchat:{request.operation_key}')
         conn.execute('UPDATE world_entities SET state_desc=?,updated_at=? WHERE uid=?',(encode(sd),now(),uid))
         if memory:
             conn.execute('INSERT INTO entity_memories(entity_uid,content,timeline_id,visibility,source_event_id) VALUES(?,?,?,?,?)',
@@ -310,17 +310,17 @@ def preview(request,stream=False):
         node_id=getattr(request,'node_id',None)
         if node_id is not None:
             node=conn.execute('SELECT * FROM nodes WHERE id=?', (node_id,)).fetchone()
-            if not node: raise HTTPException(404,'场景不存在')
-            if node['is_draft']: raise HTTPException(409,'候选分支请使用分支扩写后再确认')
+            if not node: raise HTTPException(404,'Scene does not exist')
+            if node['is_draft']: raise HTTPException(409,'Expand the candidate branch before confirming it')
             if request.timeline_id is not None:
                 team=conn.execute("SELECT current_node_id FROM timelines WHERE id=? AND status='active'", (request.timeline_id,)).fetchone()
-                if not team or team[0]!=node_id: raise HTTPException(409,'场景不属于当前队伍')
+                if not team or team[0]!=node_id: raise HTTPException(409,'The scene does not belong to the current team')
             request.scene_name=node['name'] or ''
             request.content=node['expanded_content'] or node['content'] or ''
         context=a.build_system_context(conn,request.scene_name,request.content,timeline_id=getattr(request,'timeline_id',None))
         render=prose_renderer(conn, getattr(request,'timeline_id',None))
-    system='你是GM。仅根据已知世界与当前描述丰富感官细节，不新增状态变化或事实。输出纯文本。'+NARRATIVE_RULE+'\n'+'\n'.join(context)
-    user=encode({'场景':request.scene_name,'描述':request.content})
+    system='You are the GM. Enrich the sensory details using only the known world and current description. Do not add state changes or facts. Output plain text.'+NARRATIVE_RULE+'\n'+'\n'.join(context)
+    user=encode({'Scene':request.scene_name,'Description':request.content})
     if stream:
         return StreamingResponse(prose_stream(a._stream_ai_sse(system,user,max_tokens=1400,model_override=request.model), render),media_type='text/event-stream')
     return {'status':'success','generated_text':render(a._call_ai(system,user,max_tokens=1400,json_mode=False,model_override=request.model))}

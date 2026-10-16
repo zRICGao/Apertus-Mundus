@@ -135,25 +135,25 @@ def collect(conn):
                 continue
             states = entity_state_context(conn,e['uid'],scope,team)
             states=[s for s in states if allowed(s['visibility'],None,scope,team)]
-            body = f"# {e['name']}\n实体ID：{e['uid']}\n类型：{e['entity_type']}\n位置：{e['location']}\n状态：{e['status']}\n"
+            body = f"# {e['name']}\nEntity ID: {e['uid']}\nType: {e['entity_type']}\nLocation: {e['location']}\nStatus: {e['status']}\n"
             try:
                 desc = json.loads(e['state_desc'] or '{}').get('desc','')
             except (ValueError,AttributeError):
                 desc = e['state_desc']
             body += str(desc) + '\n' + '\n'.join(f"{s['name']}：{pack(s['value'])}；{s['meaning']}；{s['effects']}"+
-                (f" [事件:{s['source_event_id']}]" if scope=='gm' and s['source_event_id'] is not None else '') for s in states)
+                (f" [Event:{s['source_event_id']}]" if scope=='gm' and s['source_event_id'] is not None else '') for s in states)
             events = []
             for r in conn.execute('SELECT * FROM entity_states WHERE entity_uid=?',(e['uid'],)):
                 if allowed(r['visibility'],None,scope,team) and r['source_event_id'] is not None:
                     events.append(r['source_event_id'])
             for r in conn.execute('SELECT * FROM entity_memories WHERE entity_uid=? ORDER BY id',(e['uid'],)):
                 if allowed(r['visibility'],r['timeline_id'],scope,team):
-                    body += f"\n已确认记忆：{r['content']}"+(f" [事件:{r['source_event_id']}]" if scope=='gm' and r['source_event_id'] is not None else '')
+                    body += f"\nConfirmed memory: {r['content']}"+(f" [Event:{r['source_event_id']}]" if scope=='gm' and r['source_event_id'] is not None else '')
                     if r['source_event_id'] is not None:
                         events.append(r['source_event_id'])
             for r in conn.execute('SELECT * FROM entity_relations WHERE subject_uid=?',(e['uid'],)):
                 if allowed(r['visibility'],None,scope,team):
-                    body += f"\n关系：{r['predicate']} → {r['object_uid']}；{r['description']} [关系:{r['uid']}]"
+                    body += f"\nRelationship: {r['predicate']} → {r['object_uid']}；{r['description']} [Relation:{r['uid']}]"
             key=f"entity/{e['uid']}/{scope}"+(f'/team:{team}' if scope=='gm' and team is not None else '')
             # Event IDs are also knowledge: do not disclose GM event existence in public pages.
             if scope!='gm':
@@ -161,18 +161,18 @@ def collect(conn):
             add(key,e['name'],body,'entities',scope,team,entity=e['uid'],events=sorted(set(events)))
     for e in conn.execute('SELECT * FROM world_events WHERE valid=1 ORDER BY id'):
         scope = f"team:{e['timeline_id']}" if e['timeline_id'] and e['kind'] in ('branch_committed','scene_committed') else 'gm'
-        add(f"event/{e['event_uid']}",f"事件 {e['id']}",e['content'],'history',scope,e['timeline_id'],events=[e['id']],tick=e['game_tick'])
+        add(f"event/{e['event_uid']}",f"Event {e['id']}",e['content'],'history',scope,e['timeline_id'],events=[e['id']],tick=e['game_tick'])
     for r in conn.execute("SELECT * FROM system_state WHERE key IN ('worldview','session_memory')"):
-        add('system/'+r['key'],'世界观' if r['key']=='worldview' else '近期剧情记忆',r['value'],
+        add('system/'+r['key'],'Worldview' if r['key']=='worldview' else 'Recent story memory',r['value'],
             'rules' if r['key']=='worldview' else 'history')
     for r in conn.execute('SELECT * FROM map_rooms'):
         add(f"map/{r['id']}",r['label'],r['description'] or '', 'map')
     for r in conn.execute('SELECT * FROM map_edges'):
-        add(f"map_edge/{r['id']}",f"地图连接 {r['id']}",pack(dict(r)), 'map')
+        add(f"map_edge/{r['id']}",f"Map connection {r['id']}",pack(dict(r)), 'map')
     for r in conn.execute('SELECT * FROM nodes WHERE is_draft=0'):
         add(f"scene/{r['id']}",r['name'],r['content'] or '', 'history')
     for r in conn.execute('SELECT * FROM timelines'):
-        add(f"team_memory/{r['id']}",r['label']+' · 剧情记忆',r['memory'] or '', 'history',f"team:{r['id']}",r['id'])
+        add(f"team_memory/{r['id']}",r['label']+' · Story memory',r['memory'] or '', 'history',f"team:{r['id']}",r['id'])
     for r in conn.execute('SELECT * FROM triggers'):
         add(f"rule/{r['id']}",r['label'],pack(dict(r)),'rules')
     return result
@@ -325,9 +325,9 @@ def rebuild_links(conn):
                     if dest!=p['page_key']:
                         put_link(conn,p,target,'source','mention','deterministic',b)
             for r in conn.execute('SELECT * FROM entity_relations WHERE subject_uid=?',(p['entity_uid'],)):
-                if f"[关系:{r['uid']}]" in b['content']:
+                if f"[Relation:{r['uid']}]" in b['content']:
                     put_link(conn,p,r['object_uid'],'entity','confirmed_relation','authority',b)
-            for event_id in re.findall(r'\[事件:(\d+)\]',b['content']):
+            for event_id in re.findall(r'\[Event:(\d+)\]',b['content']):
                 ev = conn.execute('SELECT event_uid FROM world_events WHERE id=? AND valid=1',(event_id,)).fetchone()
                 if ev:
                     put_link(conn,p,'event/'+ev[0],'page','source','authority',b)
@@ -380,7 +380,7 @@ class ContextBundle:
 
     @property
     def text(self):
-        return '\n\n'.join('[证据:'+','.join(e['evidence_ids'])+' 来源:'+ ' / '.join(e['titles'])+']\n'+e['content'] for e in self.evidence)
+        return '\n\n'.join('[Evidence:'+','.join(e['evidence_ids'])+' Source:'+ ' / '.join(e['titles'])+']\n'+e['content'] for e in self.evidence)
 
 
 def _latest_world_token(conn):

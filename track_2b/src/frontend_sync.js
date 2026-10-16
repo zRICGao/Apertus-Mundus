@@ -8,7 +8,7 @@ window.WorldSync = (() => {
             running = true;
             try {
                 const response = await fetch(`/api/devices/state?client=${client}&kind=${kind}`, {cache:'no-store'});
-                if (!response.ok) throw new Error(response.status===403 ? '连接已关闭，请重新扫码' : '等待重新连接');
+                if (!response.ok) throw new Error(response.status===403 ? 'Connection closed; scan the QR code again' : 'Waiting to reconnect');
                 const state = await response.json();
                 const paused = !canApply();
                 onStatus({...state, paused, connected:true});

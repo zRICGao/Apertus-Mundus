@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from database import atomic, connect_db
 import knowledge as k
 
-router=APIRouter(tags=['百科库'])
+router=APIRouter(tags=['Encyclopedia'])
 _db_file=''
 
 
@@ -19,7 +19,7 @@ def configure(db_file):
 def page_detail(conn,key,viewer='gm',timeline_id=None):
     p=k.page_allowed(conn,key,viewer,timeline_id)
     if not p:
-        raise HTTPException(404,'百科页面不存在')
+        raise HTTPException(404,'Encyclopedia page not found')
     meta=dict(conn.execute('SELECT * FROM wiki_page_meta WHERE page_key=?',(key,)).fetchone())
     sources=[]
     for s in conn.execute('SELECT s.*,r.content,r.recorded_at,r.effective_tick FROM wiki_dependencies d JOIN knowledge_sources s ON s.source_key=d.source_key JOIN source_revisions r ON r.revision_uid=d.revision_uid WHERE d.page_key=?',(key,)):
@@ -52,7 +52,7 @@ class SourceEdit(BaseModel):
     timeline_id:int|None=None
     retrieval_enabled:bool=True
     expected_revision:str|None=None
-    reason:str='GM 编辑'
+    reason:str='GM edit'
 
 
 def edit_source(conn,key,req):
@@ -60,7 +60,7 @@ def edit_source(conn,key,req):
     validate_visibility(req.visibility)
     old=conn.execute('SELECT * FROM knowledge_sources WHERE source_key=? AND active=1',(key,)).fetchone() if key else None
     if key and (not old or old['revision_uid']!=req.expected_revision):
-        raise HTTPException(409,'资料已更新，请重新载入后比较修改')
+        raise HTTPException(409,'The source has been updated; reload and compare changes')
     if key and key.startswith('document/'):
         from rag import chunk_text
         doc_id=int(key.split('/')[1])
@@ -71,7 +71,7 @@ def edit_source(conn,key,req):
         conn.executemany('INSERT INTO rag_chunks(doc_id,chunk_index,chunk_text) VALUES(?,?,?)',[(doc_id,i,c) for i,c in enumerate(chunks)])
     elif key and key.startswith('lore/'):
         if req.visibility!='gm' or req.timeline_id is not None or not req.retrieval_enabled:
-            raise HTTPException(422,'旧词条保持 GM 范围；需要其他范围请另建资料')
+            raise HTTPException(422,'Legacy entries remain GM-only; create a separate source for a different scope')
         conn.execute('UPDATE lorebook SET keywords=?,content=? WHERE id=?',(req.title,req.content,int(key.split('/')[1])))
     elif not key or key.startswith('manual/'):
         # Documents are the compatibility storage for new uploads and authored sources.
@@ -82,7 +82,7 @@ def edit_source(conn,key,req):
         conn.executemany('INSERT INTO rag_chunks(doc_id,chunk_index,chunk_text) VALUES(?,?,?)',[(doc,i,c) for i,c in enumerate(chunks)])
         key=f'document/{doc}'
     else:
-        raise HTTPException(422,'此页来自世界记录，请在实体、规则或事件来源中修改')
+        raise HTTPException(422,'This page comes from world records; edit the entity, rule, or event source instead')
     k.sync(conn)
     revision=conn.execute('SELECT revision_uid FROM knowledge_sources WHERE source_key=?',(key,)).fetchone()[0]
     if not old or revision!=old['revision_uid']:
@@ -111,7 +111,7 @@ def delete_source(key:str,expected_revision:str):
         k.sync(conn)
         old=conn.execute('SELECT * FROM knowledge_sources WHERE source_key=? AND active=1',(key,)).fetchone()
         if not old or old['revision_uid']!=expected_revision:
-            raise HTTPException(409,'资料已变化，请刷新后操作')
+            raise HTTPException(409,'Source data has changed; refresh before proceeding')
         if key.startswith('document/'):
             doc_id=int(key.split('/')[1])
             conn.execute('DELETE FROM rag_chunks WHERE doc_id=?',(doc_id,))
@@ -119,7 +119,7 @@ def delete_source(key:str,expected_revision:str):
         elif key.startswith('lore/'):
             conn.execute('DELETE FROM lorebook WHERE id=?',(int(key.split('/')[1]),))
         else:
-            raise HTTPException(422,'请在世界记录的来源中执行删除')
+            raise HTTPException(422,'Delete this entry through its world-record source')
         k.sync(conn)
         return {'status':'success'}
 
@@ -136,10 +136,10 @@ def restore_revision(key:str,req:RestoreRevision):
         source=conn.execute('SELECT * FROM knowledge_sources WHERE source_key=? AND active=1',(key,)).fetchone()
         rev=conn.execute('SELECT * FROM source_revisions WHERE revision_uid=?',(req.revision_uid,)).fetchone()
         if not source or not rev or source['source_uid']!=rev['source_uid']:
-            raise HTTPException(404,'来源修订不存在')
+            raise HTTPException(404,'Source revision does not exist')
         metadata=json.loads(rev['metadata'])
         edit_source(conn,key,SourceEdit(title=metadata['title'],content=rev['content'],visibility=metadata['scope'],timeline_id=metadata['team'],
-                                       retrieval_enabled=bool(metadata['enabled']),expected_revision=req.expected_revision,reason='恢复来源修订 '+req.revision_uid))
+                                       retrieval_enabled=bool(metadata['enabled']),expected_revision=req.expected_revision,reason='Restore source revision '+req.revision_uid))
         return {'status':'success','page_key':key}
 
 
@@ -148,7 +148,7 @@ def source_history(key:str):
     with closing(connect_db(_db_file)) as conn:
         s=conn.execute('SELECT * FROM knowledge_sources WHERE source_key=? AND active=1',(key,)).fetchone()
         if not s:
-            raise HTTPException(404,'来源不存在')
+            raise HTTPException(404,'Source not found')
         return {'revisions':[dict(r) for r in conn.execute('SELECT * FROM source_revisions WHERE source_uid=? ORDER BY rowid DESC',(s['source_uid'],))]}
 
 
@@ -171,7 +171,7 @@ def review_link(req:LinkReview):
         k.sync(conn)
         link=conn.execute("SELECT * FROM wiki_links WHERE link_uid=? AND status='candidate'",(req.link_uid,)).fetchone()
         if not link or not k.page_allowed(conn,link['from_key']) or not k.entity_page(conn,link['target_uid'],'gm',link['timeline_id']):
-            raise HTTPException(409,'候选已失效，请刷新')
+            raise HTTPException(409,'Candidate has expired; refresh')
         conn.execute('UPDATE wiki_links SET status=? WHERE link_uid=?',('valid' if req.approve else 'rejected',req.link_uid))
         k.log_change(conn,link['from_key'],'link_review',dict(link),{'status':'valid' if req.approve else 'rejected'},'gm')
         # A reviewed mention is still not an entity_relations fact.
@@ -200,10 +200,10 @@ def scan(conn,folder):
     root=Path(__file__).resolve().parent/'campaigns'
     target=(root/folder).resolve()
     if not target.is_relative_to(root.resolve()) or not (target/'campaign.json').is_file():
-        raise HTTPException(422,'请选择 campaigns 内的有效剧本目录')
+        raise HTTPException(422,'Select a valid campaign directory under campaigns')
     from campaigns import is_campaign_file
     if not is_campaign_file(target/'campaign.json'):
-        raise HTTPException(422,'剧本无效')
+        raise HTTPException(422,'Invalid campaign')
     items=[]
     for path in sorted((target/'knowledge').glob('*')):
         if path.suffix.lower() not in ('.txt','.md') or not path.is_file() or not path.resolve().is_relative_to(target):
@@ -239,10 +239,10 @@ def import_file(folder:str,req:ImportFile):
         k.sync(conn)
         item=next((r for r in scan(conn,folder) if r['filename']==req.filename),None)
         if not item or item['hash']!=req.content_hash or item['expected_revision']!=req.expected_revision or item['state']=='ambiguous':
-            raise HTTPException(409,'文件或存档资料已变化，请重新比较')
+            raise HTTPException(409,'File or save source has changed; compare again')
         old=conn.execute('SELECT * FROM knowledge_sources WHERE source_key=?',(item['key'],)).fetchone() if item['key'] else None
         key=edit_source(conn,item['key'],SourceEdit(title=item['title'],content=item['content'],expected_revision=item['expected_revision'],
                        visibility=old['visibility'] if old else 'gm',timeline_id=old['timeline_id'] if old else None,
-                       retrieval_enabled=bool(old['enabled']) if old else True,reason='从 knowledge 文件导入'))
+                       retrieval_enabled=bool(old['enabled']) if old else True,reason='Imported from knowledge file'))
         conn.execute('UPDATE rag_documents SET source=? WHERE id=?',(str(Path(folder)/'knowledge'/req.filename),int(key.split('/')[1])))
         return {'status':'success','page_key':key}

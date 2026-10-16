@@ -10,17 +10,17 @@ window.createEncyclopedia = () => {
         folder: '', scanned: [], scanning: false, trace: null,
         evidenceFocus: null,
         get readParts() {
-            return (this.detail?.page.body || '').split(/(\[证据:[^\]]+\])/g).map(text =>
-                text.startsWith('[证据:') ? {evidenceId:text.slice(4,-1)} : {text});
+            return (this.detail?.page.body || '').split(/(\[Evidence:[^\]]+\])/g).map(text =>
+                text.startsWith('[Evidence:') ? {evidenceId:text.slice('[Evidence:'.length,-1).trim()} : {text});
         },
         openEvidence(id) { this.evidenceFocus=this.detail.evidence.find(e=>e.evidence_uid===id) || null; this.tab='sources'; },
         get filtered() { return this.pages.filter(p => (!this.kind || p.kind === this.kind) &&
             (!this.scope || p.visibility === this.scope) && (!this.state || p.compile_status === this.state)); },
         get editable() { return this.detail?.sources.find(s => s.source_key === this.selected && /^(document|lore)\//.test(s.source_key)); },
-        label(value) { return ({lore:'设定资料',history:'事件与记忆',entities:'实体',map:'地点',rules:'规则',
-            pending:'待整理',running:'整理中',failed:'整理失败',done:'已整理',public:'公开',gm:'仅 GM',
-            mention:'提及',source:'来源引用',confirmed_relation:'已确认关系',source_revision:'来源更新',
-            source_removed:'来源删除',link_review:'关联核对',conflict_dismissed:'关闭澄清提示'})[value] || value; },
+        label(value) { return ({lore:'Lore sources',history:'Events and Memories',entities:'Entities',map:'Location',rules:'Rules',
+            pending:'Pending',running:'Compiling',failed:'Compilation failed',done:'Compiled',public:'Public',gm:'GM only',
+            mention:'Mention',source:'Source reference',confirmed_relation:'Confirmed relationship',source_revision:'Source updated',
+            source_removed:'Source removed',link_review:'Link review',conflict_dismissed:'Dismiss clarification notice'})[value] || value; },
         date(value) { if (!value) return '—'; return new Date(value).toLocaleString(); },
         async act(action) {
             this.busy = true; this.error = ''; this.message = '';
@@ -41,7 +41,7 @@ window.createEncyclopedia = () => {
         },
         search() { clearTimeout(searchTimer); searchTimer = setTimeout(() => this.load(), 180); },
         async select(key) {
-            if (this.editing && !confirm('放弃尚未保存的百科修改？')) return;
+            if (this.editing && !confirm('Discard unsaved encyclopedia edits?')) return;
             const version = ++requestVersion;
             this.selected = key; this.detail = null; this.history = []; this.evidenceFocus=null; this.editing = false; this.tab = 'read'; this.error = ''; this.loading = true;
             try {
@@ -56,7 +56,7 @@ window.createEncyclopedia = () => {
             this.sourceKey = source?.source_key || null;
             this.draft = {title: source?.title || '', content: source?.content || '', visibility: source?.visibility || 'gm',
                 timeline_id: source?.timeline_id ?? null, retrieval_enabled: source ? Boolean(source.enabled) : true,
-                expected_revision: source?.revision_uid || null, reason: 'GM 编辑'};
+                expected_revision: source?.revision_uid || null, reason: 'GM edit'};
             this.editing = true; this.error = '';
         },
         async save() {
@@ -64,15 +64,15 @@ window.createEncyclopedia = () => {
                 const result = await WorldAPI.json(this.sourceKey ? '/api/wiki/source?key=' + encodeURIComponent(this.sourceKey) : '/api/wiki/sources',
                     this.draft, this.sourceKey ? 'PUT' : 'POST');
                 this.editing = false; await this.load(); await this.select(result.page_key);
-                this.message = '资料已保存，已加入整理队列。';
+                this.message = 'Source saved and queued for compilation.';
             });
         },
         async remove() {
             const source = this.editable;
-            if (!source || !confirm('删除这份资料及其当前百科引用？检查点中的版本仍可随世界回滚恢复。')) return;
+            if (!source || !confirm('Delete this source and its current encyclopedia references? Checkpoint versions remain restorable through world rollback.')) return;
             await this.act(async () => {
                 await WorldAPI.json('/api/wiki/source?key=' + encodeURIComponent(source.source_key) + '&expected_revision=' + source.revision_uid, undefined, 'DELETE');
-                this.selected = ''; this.detail = null; await this.load(); this.message = '资料已删除，关联检索已失效。';
+                this.selected = ''; this.detail = null; await this.load(); this.message = 'Source deleted; associated search references are now invalid.';
             });
         },
         async compile() {
@@ -81,7 +81,7 @@ window.createEncyclopedia = () => {
                 if (!key) return;
                 const result = await WorldAPI.json('/api/wiki/synthesize', {page_key:key});
                 if (result.status === 'stale') throw new Error(result.message);
-                await this.load(); await this.select(key); this.message = '整理完成，原始证据已保留。';
+                await this.load(); await this.select(key); this.message = 'Compilation complete; original evidence preserved.';
             });
         },
         async upload(event) {
@@ -90,7 +90,7 @@ window.createEncyclopedia = () => {
                 const data = new FormData(); data.append('file',file); data.append('visibility','gm');
                 const response = await WorldAPI.checkedRequest('/api/rag/upload',{method:'POST',body:data});
                 const result = await response.json(); await this.load(); await this.select('document/'+result.doc_id);
-                this.message = '文件已保存，正在等待百科整理。';
+                this.message = 'File saved; awaiting encyclopedia compilation.';
             }); event.target.value = '';
         },
         async showHistory(source) {
@@ -102,11 +102,11 @@ window.createEncyclopedia = () => {
         },
         async restore(rev) {
             const source = this.detail.sources.find(s => s.source_key === this.sourceKey);
-            if (!source || !confirm('以此来源内容创建一个新修订？世界状态不会回滚。')) return;
+            if (!source || !confirm('Create a new revision from this source content? World state will not be rolled back.')) return;
             await this.act(async () => {
                 await WorldAPI.json('/api/wiki/source/restore?key='+encodeURIComponent(this.sourceKey),
                     {revision_uid:rev.revision_uid,expected_revision:source.revision_uid});
-                const key=this.sourceKey; await this.load(); await this.select(key); this.message='已恢复为新的来源修订。';
+                const key=this.sourceKey; await this.load(); await this.select(key); this.message='Restored as a new source revision.';
             });
         },
         async review(link, approve) {

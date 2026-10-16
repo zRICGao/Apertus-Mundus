@@ -17,7 +17,7 @@ from providers import evaluate, generation, parse_object
 from world import encode, state_token, now, record_event, refresh_wiki, resolve_entity
 from logger import get_logger
 
-router = APIRouter(tags=['角色审核'])
+router = APIRouter(tags=['Character Review'])
 log = get_logger('npc_review')
 EFFECT_KEYS = ('npc', 'new_entities', 'entity_changes', 'stat_changes', 'emotion_deltas',
                'npc_memories', 'state_definitions', 'state_changes', 'map_actions', 'action_type', 'skeleton')
@@ -64,9 +64,9 @@ def collect(branches):
         for proposal in declarations:
             ref = proposal.get('ref')
             if not isinstance(ref, str) or not ref or ref in refs:
-                raise ValueError('新角色的临时引用必须非空且在分支内唯一')
+                raise ValueError('A new character temporary reference must be nonempty and unique within its branch')
             if not str(proposal.get('name', '')).strip():
-                raise ValueError('新角色必须有名称')
+                raise ValueError('A new character must have a name')
             refs.add(ref)
             entries.append({'key': f'{bi}:{ref}', 'branch': bi, 'ref': ref,
                             'name': proposal['name'], 'description': proposal.get('description', proposal.get('backstory', '')),
@@ -80,17 +80,17 @@ def context(conn, request):
         rows = conn.execute('SELECT * FROM nodes WHERE is_draft=0 AND name=? AND content=?',
                             (request.get('scene_name', ''), request.get('scene_content', ''))).fetchall()
         if len(rows) != 1:
-            raise HTTPException(422, '请指定唯一的已确认场景节点后重试')
+            raise HTTPException(422, 'Specify a unique confirmed scene node and retry')
         node = rows[0]
     else:
         node = conn.execute('SELECT * FROM nodes WHERE id=? AND is_draft=0', (node_id,)).fetchone()
         if not node:
-            raise HTTPException(409, '场景不存在或尚未确认，请刷新后重试')
+            raise HTTPException(409, 'The scene does not exist or is not yet confirmed; refresh and retry')
     timeline = request.get('timeline_id')
     if timeline is not None:
         team = conn.execute("SELECT * FROM timelines WHERE id=? AND status='active'", (timeline,)).fetchone()
         if not team:
-            raise HTTPException(409, '队伍不存在或已汇合')
+            raise HTTPException(409, 'The party does not exist or has already merged')
         room_id = team['current_room_id']
     else:
         row = conn.execute("SELECT value FROM system_state WHERE key='current_room_id'").fetchone()
@@ -134,21 +134,21 @@ def judge(conn, payload):
     entries = collect(payload['parsed']['branches'])
     registered = {row[0] for row in conn.execute('SELECT uid FROM world_entities')}
     if any(entry['ref'] in registered for entry in entries):
-        raise ValueError('新角色的临时引用不能使用已有实体ID')
+        raise ValueError('A new character temporary reference cannot use an existing entity ID')
     questions = {}
     for entry in entries:
         entry['candidates'] = candidates(conn, entry, payload['context'])
-        criteria = {'create': '必要的独立新人物，参与互动或需要持续追踪',
-                    'omit': '不需要登记；背景人物即可或不应引入', 'unknown': '身份或新增必要性证据不足'}
+        criteria = {'create': 'A distinct new character is necessary for interaction or ongoing tracking',
+                    'omit': 'No registration needed; a background character suffices or the character should not be introduced', 'unknown': 'Insufficient evidence of identity or the need to create a character'}
         criteria.update({'reuse:' + c['entity_uid']: encode(c) for c in entry['candidates']})
         # Earlier declarations form a DAG: duplicate proposals can reuse one new identity.
-        criteria.update({'same:' + other['ref']: '同一人物：' + encode(other['proposal'])
+        criteria.update({'same:' + other['ref']: 'Same character: ' + encode(other['proposal'])
                          for other in entries if other['branch'] == entry['branch'] and other['key'] < entry['key']})
         questions[entry['key']] = {'type': 'choice', 'criteria': criteria,
-            'instructions': '审核这个拟新增角色的身份及必要性。优先复用已有身份；不能只因同名合并。'
-                            '人物仅换称呼/地点/状态不是新人。不要为了推进剧情无故添加角色。'
-                            '明确为不同人物才选择create；仅背景描写选omit；不能确定选unknown。'
-                            'evidence说明身份及必要性依据。角色：' + encode(entry['proposal'])}
+            'instructions': 'Review the identity and necessity of this proposed character. Prefer reusing known identities; do not merge solely on a shared name. '
+                            'A different name, location, or status does not make a character new. Do not add unnecessary characters just to advance the story. '
+                            'Choose create only for a demonstrably distinct person, omit for background description only, and unknown if uncertain. '
+                            'Use evidence to explain identity and necessity. Character: ' + encode(entry['proposal'])}
     # Callers close their read connection before model IO where possible; no write transaction is held.
     results = evaluate({'confirmed': payload['context'], 'branches': payload['parsed']['branches']}, questions)
     for entry in entries:
@@ -158,10 +158,10 @@ def judge(conn, payload):
         probabilities = sorted(result.probabilities.values(), reverse=True)
         if len(probabilities) > 1 and probabilities[0] - probabilities[1] < .15:
             entry['decision'] = 'unknown'
-            entry['reason'] = '候选身份或新增必要性的判断过于接近，请 GM 核对'
+            entry['reason'] = 'The candidate identity or necessity scores are too close; GM review required'
         if not entry['reason']:
             entry['decision'] = 'unknown'
-            entry['reason'] = '缺少身份与新增必要性的依据，请 GM 核对'
+            entry['reason'] = 'Insufficient evidence for identity and necessity; GM review required'
         entry['model_decision'], entry['model_reason'] = entry['decision'], entry['reason']
         log.info('NPC review decision=%s provider=%s fallback=%s', entry['decision'], result.provider, result.fallback)
     payload['entries'] = entries
@@ -172,7 +172,7 @@ def response(review_id, payload):
     entries=[{k:v for k,v in e.items() if k not in {'proposal','original_actions'}}
              for e in [*payload['entries'],*payload.get('map_entries',[])]]
     return {'status': 'review_required', 'review_id': review_id,
-            'message': payload.get('message', '请核对地点身份、发现与进入方式' if payload.get('map_entries') else '请核对角色身份与新增必要性'),
+            'message': payload.get('message', 'Review location identity, discovery, and entry method' if payload.get('map_entries') else 'Review character identity and necessity'),
             'entries': entries}
 
 
@@ -187,7 +187,7 @@ def fingerprint(fx):
 def seal(conn, fx, review_id, branch_index):
     row = conn.execute('SELECT * FROM npc_generation_reviews WHERE id=?', (review_id,)).fetchone()
     if not row or row['epoch'] != epoch(conn) or row['state_token'] != state_token(conn):
-        raise HTTPException(409, '角色审核已过期，请重新推演')
+        raise HTTPException(409, 'Character review expired; rerun the simulation')
     payload = json.loads(row['payload'])
     key = str(branch_index)
     payload.setdefault('seals', {})[key] = fingerprint(fx)
@@ -205,12 +205,12 @@ def check_commit(conn, fx, confirmed=False):
         return
     row = conn.execute('SELECT * FROM npc_generation_reviews WHERE id=?', (audit.get('id'),)).fetchone() if audit else None
     if not row or row['status'] != 'complete' or row['epoch'] != epoch(conn):
-        raise HTTPException(409, '候选缺少有效的世界变化审核，请重新推演')
+        raise HTTPException(409, 'Candidate is missing a valid world-change review; rerun the simulation')
     payload = json.loads(row['payload'])
     if payload.get('seals', {}).get(audit.get('branch')) != fingerprint(fx):
-        raise HTTPException(409, '候选内容与世界变化审核不一致，请重新推演')
+        raise HTTPException(409, 'Candidate content differs from the world-change review; rerun the simulation')
     if len(entries) >= 3 and not confirmed:
-        raise HTTPException(409, '本分支将新增至少 3 名角色，请查看名单并确认')
+        raise HTTPException(409, 'This branch will add at least three characters; review the list and confirm')
 
 
 def save_review(kind, request, preparation, parsed, operation_key=None):
@@ -220,12 +220,12 @@ def save_review(kind, request, preparation, parsed, operation_key=None):
             if old:
                 old_payload = json.loads(old['payload'])
                 if old_payload['request'] != request or old['epoch'] != epoch(conn):
-                    raise HTTPException(409, '请求键已用于其他请求或世界已载入，请重新发起')
+                    raise HTTPException(409, 'The request key was used for another request, or the world was reloaded; start again')
                 return old['id']
         ctx = context(conn, request)
         token = state_token(conn)
         if preparation and preparation['token'] != token:
-            raise HTTPException(409, '世界已变化，请重新推演')
+            raise HTTPException(409, 'World state has changed; rerun the simulation')
         review_id = uuid.uuid4().hex
         payload = {'kind':kind,'request': request, 'preparation': preparation, 'parsed': parsed, 'token':token,
                    'original_parsed': copy.deepcopy(parsed), 'context': ctx, 'entries': []}
@@ -242,24 +242,24 @@ def rewrite(payload):
     if not affected:
         return
     original = copy.deepcopy(branches)
-    raw = agent._call_ai('你是候选分支修正器。只返回JSON {"branches":[修正后的分支]}。'
-        '严格执行角色审核结论，仅修正提供的分支，保持玩家行动和无关结果不变。'
-        '复用已有角色必须采用其身份与描述，不覆盖其现有属性。取消新增的背景人物可保留无身份背景描写，'
-        '但不能继续参与需要实体的互动。移除其所有副作用与关系引用。禁止添加未审核人物。'
-        '保留其他角色的ref；已复用的ref可保留在副作用中，服务器统一映射。',
+    raw = agent._call_ai('You revise candidate branches. Return only JSON {"branches":[revised branches]}. '
+        'Strictly apply the character-review decisions. Revise only the provided branches, preserving player actions and unrelated outcomes. '
+        'Reused characters must retain their identities and descriptions without overwriting existing attributes. Rejected background characters may remain as anonymous background descriptions, '
+        'but cannot participate in interactions that require a registered entity. Remove all their side effects and relationship references. Do not add unreviewed characters. '
+        'Preserve references of other characters; references to reused characters may remain in side effects and will be resolved by the server.',
         encode({'confirmed': payload['context'], 'branches': [branches[i] for i in affected],
                 'decisions': [e for e in payload['entries'] if e['branch'] in affected]}),
         temperature=.1, max_tokens=6000, json_mode=True, model_override=payload['request'].get('model'))
     from engine import validate_branches
     repaired = validate_branches(parse_object(raw))
     if len(repaired) != len(affected):
-        raise ValueError('角色修正返回的分支数量不一致')
+        raise ValueError('The character revision returned a different number of branches')
     for bi, branch in zip(affected, repaired):
         entries = [e for e in payload['entries'] if e['branch'] == bi]
         permitted = {e['ref']: e for e in entries}
         for proposed in collect([copy.deepcopy(branch)]):
             if proposed['ref'] not in permitted:
-                raise ValueError('修正引入了未经审核的新人物')
+                raise ValueError('The revision introduced an unreviewed new character')
         mapping, omitted = {}, set()
         for entry in entries:
             decision = entry['decision']
@@ -272,9 +272,9 @@ def rewrite(payload):
         for source in mapping:
             seen, target = {source}, mapping[source]
             while target in mapping:
-                if target in seen: raise ValueError('角色复用存在循环')
+                if target in seen: raise ValueError('Character reuse contains a cycle')
                 seen.add(target); target = mapping[target]
-            if target in omitted: raise ValueError('不能复用已取消的人物')
+            if target in omitted: raise ValueError('Cannot reuse a rejected character')
             mapping[source] = target
         # Approved new profiles remain server-owned; repair cannot swap their identity/details.
         branch['npc'] = copy.deepcopy(original[bi].get('npc'))
@@ -286,15 +286,15 @@ def rewrite(payload):
             for change in branch.get(key, []):
                 for field in ('entity_uid', 'target_uid'):
                     value = change.get(field)
-                    if value in omitted: raise ValueError('修正仍引用已取消角色')
+                    if value in omitted: raise ValueError('The revision still references a rejected character')
                     if value in mapping: change[field] = mapping[value]
         if branch.get('san_delta'):
             value = branch['san_delta'].get('entity_uid')
-            if value in omitted: raise ValueError('修正仍引用已取消角色')
+            if value in omitted: raise ValueError('The revision still references a rejected character')
             branch['san_delta']['entity_uid'] = mapping.get(value, value)
         # No alternate creation route may escape the approved declarations.
         if any(c.get('new') and not c.get('entity_uid') for c in branch.get('entity_changes', [])):
-            raise ValueError('修正新增了未经审核的实体声明')
+            raise ValueError('The revision added an unreviewed entity declaration')
         reused = set(mapping.values())
         for change in branch.get('entity_changes', []):
             if change.get('entity_uid') in reused:
@@ -303,12 +303,12 @@ def rewrite(payload):
         branch['map_actions']=copy.deepcopy(original[bi].get('map_actions'))
         branches[bi] = branch
     # A separate bounded verification checks narrative coherence; failures require GM, never another auto loop.
-    checks = {str(bi): {'type': 'choice', 'criteria': {'ok': '正文及副作用符合全部审核决定', 'unknown': '冲突或无法确定'},
-                       'instructions': '核对修正后的角色身份、取消新增与相关叙事是否一致，不得出现未声明新互动人物。'}
+    checks = {str(bi): {'type': 'choice', 'criteria': {'ok': 'Narrative and side effects follow all review decisions', 'unknown': 'Conflict or uncertain outcome'},
+                       'instructions': 'Check that revised identities, rejected creations, and related narrative are consistent; no undeclared new interactive characters may appear.'}
               for bi in affected}
     result = evaluate({'branches': {str(i): branches[i] for i in affected}, 'decisions': payload['entries']}, checks)
     if any(r.status != 'ok' or r.value != 'ok' for r in result.values()):
-        raise ValueError('修正后的叙事仍需要 GM 核对')
+        raise ValueError('The revised narrative still requires GM review')
 
 
 def public_existing(conn, uid):
@@ -321,9 +321,9 @@ def complete_npc(conn, payload):
     entry = payload['entries'][0]
     decision = entry['decision']
     if decision.startswith('reuse:'):
-        return {'status': 'success', 'outcome': 'reused', 'npc': public_existing(conn, decision[6:]), 'message': '已复用现有角色，没有新增档案'}
+        return {'status': 'success', 'outcome': 'reused', 'npc': public_existing(conn, decision[6:]), 'message': 'Reused an existing character; no new profile created'}
     if decision == 'omit':
-        return {'status': 'success', 'outcome': 'not_needed', 'npc': None, 'message': '当前场景无需登记新角色'}
+        return {'status': 'success', 'outcome': 'not_needed', 'npc': None, 'message': 'No new character needs to be registered for this scene'}
     from world import create_entity
     p = entry['proposal']
     from engine import integer
@@ -334,7 +334,7 @@ def complete_npc(conn, payload):
                            (p['name'], integer(p.get('hp', 50), 'HP'), integer(p.get('san', 60), 'SAN'),
                             p.get('inventory', ''), p.get('backstory', p.get('description', '')), uid)).lastrowid
     npc = {**p, 'id': char_id, 'entity_uid': uid, 'role': 'NPC'}
-    record_event(conn, 'character_create', f"角色 {p['name']} 登记", {'entity_uid': uid, 'review': entry}, payload['context']['timeline_id'])
+    record_event(conn, 'character_create', f"Character {p['name']} registered", {'entity_uid': uid, 'review': entry}, payload['context']['timeline_id'])
     refresh_wiki(conn)
     return {'status': 'success', 'outcome': 'created', 'npc': npc}
 
@@ -343,15 +343,15 @@ def run(review_id, choices=None, operation_key=None):
     """Lease across IO; each failed attempt leaves a retryable, authoritative review."""
     with db() as conn, atomic(conn):
         row = conn.execute('SELECT * FROM npc_generation_reviews WHERE id=?', (review_id,)).fetchone()
-        if not row: raise HTTPException(404, '角色审核不存在')
-        if row['epoch'] != epoch(conn): raise HTTPException(409, '世界已载入或回滚，请重新发起')
+        if not row: raise HTTPException(404, 'Character review does not exist')
+        if row['epoch'] != epoch(conn): raise HTTPException(409, 'The world was reloaded or rolled back; start again')
         resolution = encode({'choices': choices, 'operation_key': operation_key}) if choices is not None else None
         if row['status'] == 'complete':
             if resolution is not None and resolution != row['resolution']:
-                raise HTTPException(409, '审核已完成，不能修改已处理的选择')
+                raise HTTPException(409, 'Review is complete; processed choices cannot be changed')
             return json.loads(row['result'])
-        if row['state_token'] != state_token(conn): raise HTTPException(409, '世界已变化，请重新推演')
-        if row['lease_until'] > time.time(): raise HTTPException(409, '角色审核正在处理，请稍后重试')
+        if row['state_token'] != state_token(conn): raise HTTPException(409, 'World state has changed; rerun the simulation')
+        if row['lease_until'] > time.time(): raise HTTPException(409, 'Character review is being processed; retry shortly')
         payload, kind, token = json.loads(row['payload']), row['kind'], row['state_token']
         lease = time.time() + 600
         conn.execute('UPDATE npc_generation_reviews SET lease_until=? WHERE id=?', (lease, review_id))
@@ -369,20 +369,20 @@ def run(review_id, choices=None, operation_key=None):
         if choices is not None:
             from map_review import choice_keys,validate_choices,apply_choices
             entries = {e['key']: e for e in payload['entries']}
-            if set(choices) != set(entries)|choice_keys(payload): raise HTTPException(422, '请为每项世界变化选择处理方式')
+            if set(choices) != set(entries)|choice_keys(payload): raise HTTPException(422, 'Select a handling method for each world change')
             for key in entries:
                 decision=choices[key]
                 entry = entries[key]
                 permitted = {'create', 'omit'} | {'reuse:' + c['entity_uid'] for c in entry['candidates']}
                 permitted |= {'same:' + other['ref'] for other in entries.values()
                               if other['branch'] == entry['branch'] and other['key'] < key}
-                if decision not in permitted: raise HTTPException(422, '角色处理选择无效')
+                if decision not in permitted: raise HTTPException(422, 'Invalid character-handling choice')
             validate_choices(payload,choices)
             for key in entries:
                 decision=choices[key]
-                reason = ('GM 确认需要登记为独立的新人物' if decision == 'create' else
-                          'GM 选择不登记此人物' if decision == 'omit' else
-                          'GM 确认为本分支中的同一人物' if decision.startswith('same:') else 'GM 选择复用已有身份')
+                reason = ('GM confirmed registration of a distinct new character' if decision == 'create' else
+                          'GM chose not to register this character' if decision == 'omit' else
+                          'GM confirmed this is the same character within this branch' if decision.startswith('same:') else 'GM chose to reuse an existing identity')
                 entries[key].update(decision=decision, reason=reason, manual=True)
             apply_choices(payload,choices)
             log.info('NPC review manual_override count=%s', len(choices))
@@ -390,17 +390,17 @@ def run(review_id, choices=None, operation_key=None):
         if any(e['decision'] == 'unknown' for e in payload['entries']) or unresolved(payload):
             return response(review_id, payload)
         if kind == 'npc' and payload['entries'][0]['decision'] == 'create' and not payload.get('profile_ready'):
-            raw = generation.generate('根据已审核的新角色需求生成一个NPC档案。仅返回JSON：'
-                '{"name":"姓名","hp":50,"san":60,"inventory":"物品","backstory":"背景","aliases":[]}。'
-                '不能冒充现有身份。', encode({'context': payload['context'], 'review': payload['entries']}),
+            raw = generation.generate('Generate an NPC profile from the approved new-character requirements. Return only JSON:'
+                '{"name":"Name","hp":50,"san":60,"inventory":"Items","backstory":"Background","aliases":[]}.'
+                'Do not impersonate an existing identity.', encode({'context': payload['context'], 'review': payload['entries']}),
                 json_mode=True, temperature=.7, max_tokens=1000)
             proposal = {**parse_object(raw), 'ref': 'new_npc'}
             from engine import integer
             if not isinstance(proposal.get('name'), str) or not proposal['name'].strip():
-                raise ValueError('生成角色缺少有效姓名，请重试')
+                raise ValueError('The generated character has no valid name; retry')
             integer(proposal.get('hp', 50), 'HP'); integer(proposal.get('san', 60), 'SAN')
             if any(not isinstance(proposal.get(k, ''), str) for k in ('inventory', 'backstory')):
-                raise ValueError('生成角色档案格式无效，请重试')
+                raise ValueError('Invalid generated character-profile format; retry')
             profile = copy.deepcopy(payload)
             profile['parsed'] = {'branches': [{'npc': proposal}]}
             profile['profile_ready'] = True
@@ -408,7 +408,7 @@ def run(review_id, choices=None, operation_key=None):
             payload = profile
             if choices is not None:
                 # The GM chose creation before seeing this generated identity: review the actual profile if uncertain.
-                payload['message'] = '角色档案已生成，请核对实际身份'
+                payload['message'] = 'Character profile generated; verify its identity'
             if any(e['decision'] == 'unknown' for e in payload['entries']): return response(review_id, payload)
         if kind in {'dynamic','map','branch'}:
             before_repair = copy.deepcopy(payload['parsed'])
@@ -423,14 +423,14 @@ def run(review_id, choices=None, operation_key=None):
             except Exception as exc:
                 payload['parsed'] = before_repair
                 if isinstance(exc,HTTPException) and exc.status_code==409: raise
-                payload['message'] = '世界变化修正未完成，请核对后重试：' + str(exc)[:300]
+                payload['message'] = 'World-change revision incomplete; review and retry: ' + str(exc)[:300]
                 for e in payload['entries']: e['decision'] = 'unknown'
                 for e in payload.get('map_entries',[]): e['decision']='unknown'
                 return response(review_id, payload)
         with db() as conn, atomic(conn):
             owned = conn.execute('SELECT lease_until FROM npc_generation_reviews WHERE id=?', (review_id,)).fetchone()
-            if not owned or owned[0] != lease: raise HTTPException(409, '审核处理权已变化，请刷新重试')
-            if token != state_token(conn): raise HTTPException(409, '世界已变化，审核结果未保存，请重新推演')
+            if not owned or owned[0] != lease: raise HTTPException(409, 'Review processing ownership changed; refresh and retry')
+            if token != state_token(conn): raise HTTPException(409, 'World state changed; review results were not saved; rerun the simulation')
             conn.execute('UPDATE npc_generation_reviews SET payload=? WHERE id=?', (encode(payload), review_id))
             if kind == 'dynamic':
                 import agent
@@ -485,18 +485,18 @@ def cached_dynamic(request):
         if not row: return None
         payload = json.loads(row['payload'])
         if row['epoch'] != epoch(conn) or payload['preparation'].get('request_input') != request.model_dump():
-            raise HTTPException(409, '请求键已用于其他请求或世界已载入，请重新发起')
+            raise HTTPException(409, 'The request key was used for another request, or the world was reloaded; start again')
         if row['status'] == 'complete': return json.loads(row['result'])
-        if row['state_token'] != state_token(conn): raise HTTPException(409, '世界已变化，请重新推演')
-        if row['lease_until'] > time.time(): raise HTTPException(409, '角色审核正在处理，请稍后重试')
+        if row['state_token'] != state_token(conn): raise HTTPException(409, 'World state has changed; rerun the simulation')
+        if row['lease_until'] > time.time(): raise HTTPException(409, 'Character review is being processed; retry shortly')
         if payload['entries']: return response(row['id'], payload)
     return run(row['id'])
 
 
 def generate_npc(request):
     req = request.model_dump()
-    parsed = {'branches': [{'npc': {'ref': 'new_npc', 'name': '待登记人物',
-                                   'backstory': '判断当前场景是否需要一个尚未登记的互动人物；若已有合适人物则复用。'}}]}
+    parsed = {'branches': [{'npc': {'ref': 'new_npc', 'name': 'Character Pending Registration',
+                                   'backstory': 'Determine whether the current scene needs a new interactive character; reuse a suitable existing character if available.'}}]}
     key = 'npc:' + request.operation_key if request.operation_key else None
     review_id = save_review('npc', req, None, parsed, key)
     return run(review_id)

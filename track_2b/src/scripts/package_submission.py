@@ -30,6 +30,8 @@ def package(destination):
         for file in sorted(SOURCE.glob(pattern)):
             copy(file, src / file.name)
     copy(SOURCE / 'requirements.txt', src / 'requirements.txt')
+    for name in ('DESIGN.md', 'PRODUCT.md'):
+        copy(SOURCE / name, src / name)
     for file in sorted((SOURCE / 'frontend_vendor').iterdir()):
         if file.suffix in {'.js', '.md'}:
             copy(file, src / 'frontend_vendor' / file.name)
@@ -76,8 +78,9 @@ def package(destination):
             copy(source, track / 'docs' / name)
     # Keep packaging inputs available for a reproducible re-export.
     copy(PROJECT / 'docs' / 'SUBMISSION_README.md', track / 'docs' / 'SUBMISSION_README.md')
-    for file in sorted((PROJECT / 'tests').glob('test_*.py')):
-        copy(file, track / 'tests' / file.name)
+    for pattern in ('test_*.py', 'test_*.cjs'):
+        for file in sorted((PROJECT / 'tests').glob(pattern)):
+            copy(file, track / 'tests' / file.name)
     (destination / 'README.md').write_text(
         '# Apertus Mundus — Track 2b\n\n'
         'Submission layout follows https://github.com/HackApertus/project-template .\n'

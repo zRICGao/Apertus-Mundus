@@ -30,7 +30,7 @@ def candidates(conn, ctx, proposed, narrative):
         score+=4 if row['id'] in edges else 0
         ranked.append((score,{'room_id':row['id'],'name':row['label'],'aliases':labels[1:],
             'floor':row['floor'],'map_id':row['map_id'],'description':row['description'], 'status':row['state'],
-            'location':f"第{row['floor']}层",'connection':edges.get(row['id']),
+            'location':f"Floor {row['floor']}",'connection':edges.get(row['id']),
             'choice':('reveal:' if row['state']=='unknown' else 'reuse:')+str(row['id'])}))
     ranked.sort(key=lambda pair:(-pair[0],pair[1]['room_id']))
     return [item for _,item in ranked[:24]]
@@ -47,27 +47,27 @@ def judge(conn,payload):
         except (ValueError,TypeError,KeyError) as exc:
             invalid=str(exc); plan=None
         if payload['request'].get('action_type')=='dialogue':
-            invalid='对话模式不能改变队伍位置或地图，请取消空间变化或改用行动模式'
+            invalid='Dialogue mode cannot change the party position or map; remove spatial changes or switch to action mode'
         new=actions.get('new_room') if isinstance(actions,dict) else None
         if not new and not invalid: continue  # Existing, unambiguous actions need no identity model call.
         mode='new' if isinstance(new,dict) else 'movement' if isinstance(actions,dict) and set(actions)=={'movement'} else 'invalid'
         if payload['request'].get('action_type')=='dialogue':
-            mode='invalid'; invalid='对话模式不能改变队伍位置或地图，请取消空间变化或改用行动模式'
+            mode='invalid'; invalid='Dialogue mode cannot change the party position or map; remove spatial changes or switch to action mode'
         new=new if isinstance(new,dict) else {}
         entry={'key':f'map:{bi}','kind':'map','mode':mode,'branch':bi,'ref':new.get('ref','new_room'),
-               'name':new.get('label','空间变化'),'description':new.get('description',''),
+               'name':new.get('label','Spatial change'),'description':new.get('description',''),
                'original_actions':copy.deepcopy(actions),'candidates':candidates(conn,ctx,new,branch.get('node_content','')),
                'decision':'unknown','reason':invalid,'arrival':'unknown' if mode=='new' else 'enter' if mode=='movement' else 'stay'}
-        entry['options']={'omit':'不改变地图，仅保留合适的背景描写','unknown':'地点身份或必要性不确定'}
-        if mode=='new' and not invalid: entry['options']['create']='确有必要登记一个独立的新区域'
+        entry['options']={'omit':'Keep the map unchanged and retain only appropriate background descriptions','unknown':'Location identity or necessity is uncertain'}
+        if mode=='new' and not invalid: entry['options']['create']='A distinct new area genuinely needs to be registered'
         if mode!='invalid':
             entry['options'].update({c['choice']:encode(c) for c in entry['candidates']})
         entries.append(entry)
         if mode=='invalid': continue
         questions[entry['key']]={'type':'choice','criteria':entry['options'],
-            'instructions':'审核拟发生的地点身份与新增必要性。名称、别名、地图、楼层、描述和连接共同识别地点；'
-                '不能只因同名合并，也不能把换称呼的旧地点当成新人造区域。优先复用或揭示已有区域。'
-                '纯气氛或同一地点内的叙事不建房间。证据不足选unknown；evidence说明依据。'}
+            'instructions':'Review the identity and necessity of the proposed location. Its name, aliases, map, floor, description, and connections jointly establish its identity; '
+                'do not merge locations solely because they share a name, or treat an existing location with a different name as a new area. Prefer reusing or revealing existing areas. '
+                'Do not create rooms for atmosphere alone or events within the same location. Choose unknown when evidence is insufficient; explain the basis in evidence.'}
         if mode=='new':
             movement=actions.get('movement') or {}
             moving_new=movement.get('target_room_ref')==entry['ref'] or (movement.get('target_room_id') is None and movement.get('target_room_label')==new.get('label'))
@@ -75,14 +75,14 @@ def judge(conn,payload):
             elif moving_new: entry['arrival']='enter'
             elif movement: entry['arrival']='stay'
             else:
-                questions[entry['key']+':arrival']={'type':'choice','criteria':{'enter':'本分支已经进入目标区域','stay':'仅发现目标，队伍仍在原地','unknown':'无法确定是否进入'},
-                    'instructions':'只判断这个候选结果中的队伍最终位置。区分发现、看见入口和实际进入；不得仅因玩家想进入就判已进入。'}
+                questions[entry['key']+':arrival']={'type':'choice','criteria':{'enter':'This branch has already entered the target area','stay':'The destination was only discovered; the party remains in place','unknown':'Cannot determine whether the party entered'},
+                    'instructions':'Judge only the party final position in this candidate outcome. Distinguish discovering a place, seeing an entrance, and actually entering; intent alone does not establish entry.'}
     if questions:
         results=evaluate({'confirmed':ctx,'branches':payload['parsed']['branches'], 'places':entries},questions)
         for entry in entries:
             r=results.get(entry['key'])
             if r:
-                entry.update(decision=r.value if r.status=='ok' else 'unknown',reason=r.evidence or '缺少地点身份与新增必要性的依据',provider=r.provider,fallback=r.fallback)
+                entry.update(decision=r.value if r.status=='ok' else 'unknown',reason=r.evidence or 'Insufficient evidence for location identity and the need to create it',provider=r.provider,fallback=r.fallback)
                 probs=sorted(r.probabilities.values(),reverse=True)
                 if not r.evidence or (len(probs)>1 and probs[0]-probs[1]<.15): entry['decision']='unknown'
             arrival=results.get(entry['key']+':arrival')
@@ -100,14 +100,14 @@ def choice_keys(payload):
 def validate_choices(payload,choices):
     for entry in payload.get('map_entries',[]):
         allowed=set(entry['options'])-{'unknown'}
-        if choices[entry['key']] not in allowed: raise HTTPException(422,'地点处理选择无效')
+        if choices[entry['key']] not in allowed: raise HTTPException(422,'Invalid location-review choice')
         if entry['mode']=='new' and choices[entry['key']+':arrival'] not in {'enter','stay'}:
-            raise HTTPException(422,'请明确是否进入目标区域')
+            raise HTTPException(422,'Specify whether the party enters the target area')
 
 
 def apply_choices(payload,choices):
     for entry in payload.get('map_entries',[]):
-        entry.update(decision=choices[entry['key']],manual=True,reason='GM 已明确选择地点处理方式')
+        entry.update(decision=choices[entry['key']],manual=True,reason='GM explicitly selected the location handling method')
         if entry['mode']=='new': entry['arrival']=choices[entry['key']+':arrival']
 
 
@@ -138,7 +138,7 @@ def canonical_actions(entry):
         new.setdefault('ref',entry['ref']); actions['new_room']=new
         if entry['arrival']=='enter': actions['movement']={'target_room_ref':entry['ref']}
         elif is_new_move: actions.pop('movement',None)
-    else: raise ValueError('地点审核尚未完成')
+    else: raise ValueError('Location review is not complete')
     return actions or None
 
 
@@ -156,53 +156,53 @@ def repair_and_preflight(payload):
         branches[bi]['map_actions']=actions
     # Validate canonical decisions before spending a generation call on a repair.
     with npc_review.db() as conn:
-        if state_token(conn)!=payload['token']: raise HTTPException(409,'世界已变化，请重新推演')
+        if state_token(conn)!=payload['token']: raise HTTPException(409,'World state has changed; rerun the simulation')
         for branch in branches: plan_map_actions(conn,branch,payload['context']['room_id'],payload['context']['timeline_id'])
     if changed:
         changed=sorted(set(changed))
-        raw=agent._call_ai('你是地图候选修正器。只返回JSON {"branches":[修正后的分支]}。'
-            '严格按已审核地图动作修正分支标题、选项与正文，区分发现与进入，确保最终位置一致。'
-            '不能新增人物、改写无关事件或修改副作用；取消地图变化时不能仍叙述已经进入被取消的新区域。',
+        raw=agent._call_ai('You revise candidate map branches. Return only JSON {"branches":[revised branches]}. '
+            'Revise branch titles, options, and narrative strictly according to approved map actions. Distinguish discovery from entry and ensure the final location is consistent. '
+            'Do not add characters, rewrite unrelated events, or change side effects. If a map change was canceled, do not claim the party entered the canceled new area.',
             encode({'confirmed':payload['context'],'branches':[branches[i] for i in changed],
                     'map_decisions':payload.get('map_entries',[])}),temperature=.1,max_tokens=6000,json_mode=True,
             model_override=payload['request'].get('model'))
         from engine import validate_branches
         from providers import parse_object
         repaired=validate_branches(parse_object(raw))
-        if len(repaired)!=len(changed): raise ValueError('地图修正返回的分支数量不一致')
+        if len(repaired)!=len(changed): raise ValueError('The map revision returned a different number of branches')
         for bi,branch in zip(changed,repaired):
             for field in ('text','node_name','node_content','entity_updates'):
                 branches[bi][field]=branch[field]
-        checks={str(i):{'type':'choice','criteria':{'ok':'正文、发现/进入和全部副作用一致','unknown':'仍有冲突或无法确定'},
-                       'instructions':'核对修正后的叙事是否遵守地图决策和最终位置，且保留人物与其他事件事实。'} for i in changed}
+        checks={str(i):{'type':'choice','criteria':{'ok':'Narrative, discovery/entry, and all side effects are consistent','unknown':'Conflicts remain or the outcome is uncertain'},
+                       'instructions':'Check that the revised narrative respects the map decision and final position, while preserving character identities and other event facts.'} for i in changed}
         results=evaluate({'branches':{str(i):branches[i] for i in changed},'confirmed':payload['context'],
                           'map_decisions':payload.get('map_entries',[])},checks)
-        if any(r.status!='ok' or r.value!='ok' for r in results.values()): raise ValueError('地图正文仍需 GM 核对')
+        if any(r.status!='ok' or r.value!='ok' for r in results.values()): raise ValueError('The map narrative still requires GM review')
 
 
 def auto_room(request):
     import npc_review
-    if not request.operation_key: raise HTTPException(422,'自动新增区域须提供 operation_key；GM 手动新增请使用地图编辑器')
+    if not request.operation_key: raise HTTPException(422,'Automatically creating an area requires operation_key; use the map editor to create areas manually as GM')
     req=request.model_dump()
     req['current_node_id']=request.current_node_id or request.node_id
-    req['player_action']='发现并进入新区域' if request.enter else '发现新区域，但不进入'
+    req['player_action']='Discover and enter a new area' if request.enter else 'Discover a new area without entering'
     cached=None
     with npc_review.db() as conn:
         row=conn.execute('SELECT * FROM npc_generation_reviews WHERE operation_key=?',('map:'+request.operation_key,)).fetchone()
         if row:
             if json.loads(row['payload'])['request']!=req or row['epoch']!=npc_review.epoch(conn):
-                raise HTTPException(409,'请求键已用于其他地图请求或世界已载入')
+                raise HTTPException(409,'The request key was used for another map request, or the world was reloaded')
             cached=row['id']
     if cached: return npc_review.run(cached)
     with npc_review.db() as conn:
         ctx=npc_review.context(conn,req)
         parent=room_record(conn,request.parent_room_id,request.map_id)
-        if ctx['room_id']!=parent['id']: raise HTTPException(409,'父地点与队伍当前位置不一致')
+        if ctx['room_id']!=parent['id']: raise HTTPException(409,'The parent location does not match the current party position')
     new={'ref':'new_room','label':request.label,'description':request.description,'edge_type':request.edge_type,'aliases':request.aliases}
     if request.floor is not None: new['floor']=request.floor
     actions={'new_room':new}
     if request.enter: actions['movement']={'target_room_ref':'new_room'}
-    parsed={'branches':[{'text':'发现区域','node_name':request.label,'node_content':req['player_action']+'：'+request.label,
+    parsed={'branches':[{'text':'Discover area','node_name':request.label,'node_content':req['player_action']+': '+request.label,
                          'map_actions':actions}]}
     review_id=npc_review.save_review('map',req,None,parsed,'map:'+request.operation_key)
     return npc_review.run(review_id)
@@ -214,7 +214,7 @@ def complete(conn,payload):
     actions=payload['parsed']['branches'][0].get('map_actions')
     result=apply_map_actions(conn,{'map_actions':actions},payload['context']['room_id'],payload['context']['timeline_id'])
     if actions:
-        record_event(conn,'map_change','已审核的地图变化',{'actions':actions,'result':result},payload['context']['timeline_id'])
+        record_event(conn,'map_change','Approved map change',{'actions':actions,'result':result},payload['context']['timeline_id'])
         refresh_wiki(conn)
     outcome='created' if result['new_room'] else 'reused' if actions else 'not_needed'
     return {'status':'success','outcome':outcome,'id':result['new_room']['room_id'] if result['new_room'] else None,'map_result':result}

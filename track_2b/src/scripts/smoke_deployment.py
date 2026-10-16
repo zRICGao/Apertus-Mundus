@@ -26,16 +26,16 @@ def require(response, stage):
 def completion(**kwargs):
     """A deterministic test double, used exclusively without --live."""
     if kwargs.get('max_tokens') == 1400:
-        content = '你对照维修记录检查控制台，确认应先断开电源。手电照亮了盖板边缘，工具包就放在身旁。'
-    elif '决策分类器' in kwargs['messages'][0]['content']:
+        content = 'You check the console against the maintenance records and confirm that power must be disconnected first. Your flashlight lights the cover while your toolkit rests beside you.'
+    elif 'decision classifier' in kwargs['messages'][0]['content']:
         questions = json.loads(kwargs['messages'][-1]['content'])['questions']
         content = json.dumps({'answers': {
             key: ({'noul': 1} if value['type'] == 'noul' else
                   {'choice': next(iter(value['criteria']))}) for key, value in questions.items()}})
     else:
         content = json.dumps({'branches': [
-            {'text': '先核对记录', 'node_name': '检查之前', 'node_content': '你对照维修记录核对控制台的警报，决定先确认断电步骤。', 'likelihood': '高（谨慎检查）'},
-            {'text': '观察控制台', 'node_name': '检查盖板', 'node_content': '你用手电照亮控制台，观察盖板边缘与电源开关的位置。', 'likelihood': '高（工具齐备）'}]}, ensure_ascii=False)
+            {'text': 'Check records', 'node_name': 'Before repairs', 'node_content': 'You check the alarm records and confirm how to disconnect the console power.', 'likelihood': 'High (careful review)'},
+            {'text': 'Inspect console', 'node_name': 'Console cover', 'node_content': 'You light the console with your flashlight and inspect its cover and power switch.', 'likelihood': 'High (tools ready)'}]}, ensure_ascii=False)
     return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content), finish_reason='stop')])
 
 
@@ -98,7 +98,7 @@ def run(live):
                 before = state_token(conn)
                 count = conn.execute('SELECT count(*) FROM nodes').fetchone()[0]
             request = {'current_node_id': 1, 'timeline_id': 1, 'action_type': 'action',
-                       'player_action': '留在门厅，先对照维修记录检查控制台，不移动，不新增人物。'}
+                       'player_action': 'Stay in the foyer and check the console against the maintenance records. Do not move or add characters.'}
             # Failure must not create a draft or change confirmed world state.
             with patch.object(agent, '_call_ai', side_effect=RuntimeError('Intentional smoke outage')):
                 failed = client.post('/api/ai/dynamic-options', json=request).json()

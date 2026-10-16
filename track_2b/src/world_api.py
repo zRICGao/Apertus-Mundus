@@ -8,7 +8,7 @@ from providers import generation, route_action
 from world import (apply_state_changes, entity_state_context, known_definitions, record_event,
                    refresh_wiki, resolve_mention, state_token, synthesize_wiki, visible)
 
-world_router = APIRouter(tags=["世界与Wiki"])
+world_router = APIRouter(tags=["World and Wiki"])
 _db_file = ""
 
 
@@ -57,7 +57,7 @@ def entity_states(uid: str):
 @world_router.post("/api/world/states")
 def patch_states(req: StatePatch):
     if not req.operation_key.strip():
-        raise HTTPException(422, "operation_key 不能为空")
+        raise HTTPException(422, "operation_key cannot be empty")
     conn = connect_db(_db_file)
     try:
         with atomic(conn):
@@ -65,8 +65,8 @@ def patch_states(req: StatePatch):
             if old:
                 return {"status": "already_applied", "event_id": old[0]}
             if state_token(conn) != req.expected_token:
-                raise HTTPException(409, "世界状态已变化，请刷新后提交")
-            event_id = record_event(conn, "state_patch", "状态更新", req.model_dump(), req.timeline_id, req.operation_key)
+                raise HTTPException(409, "World state has changed; refresh before submitting")
+            event_id = record_event(conn, "state_patch", "State update", req.model_dump(), req.timeline_id, req.operation_key)
             apply_state_changes(conn, req.definitions, req.changes, event_id)
             refresh_wiki(conn)
         return {"status": "success", "event_id": event_id, "state_token": state_token(conn)}
@@ -158,13 +158,13 @@ def advance_tick(req: TickRequest):
     try:
         with atomic(conn):
             if state_token(conn) != req.expected_token:
-                raise HTTPException(409, "世界已更新")
+                raise HTTPException(409, "World has been updated")
             current = int(conn.execute("SELECT value FROM system_state WHERE key='game_tick'").fetchone()[0])
             if req.tick < current:
-                raise HTTPException(422, "统一世界回合不能倒退，请使用回滚")
+                raise HTTPException(422, "Shared world tick cannot move backward; use rollback")
             conn.execute("UPDATE system_state SET value=? WHERE key='game_tick'", (str(req.tick),))
             conn.execute("UPDATE timelines SET game_tick=? WHERE status='active'", (req.tick,))
-            record_event(conn, "tick", f"世界回合推进至 {req.tick}")
+            record_event(conn, "tick", f"World tick advanced to {req.tick}")
             refresh_wiki(conn)
         return {"status": "success", "state_token": state_token(conn)}
     finally:

@@ -1,7 +1,7 @@
 from database import connect_db, atomic
 from providers import generation, parse_object
 """
-APERTUS-MUNDUS 引擎 — 主系统模块 (main.py)
+APERTUS-MUNDUS engine — main system module (main.py)
 """
 
 
@@ -28,18 +28,18 @@ import math
 from contextlib import closing
 
 
-app = fastapi.FastAPI(title="Apertus Mundus · 世界工作台")
+app = fastapi.FastAPI(title="Apertus Mundus · World Workbench")
 
 from device_link import DeviceSession, DeviceAccessMiddleware, create_router as create_device_router
 device_session = DeviceSession()
 app.add_middleware(DeviceAccessMiddleware, session=device_session)
 
-# CORS 仅允许本地访问，部署时通过 ALLOWED_ORIGINS 环境变量配置
-# 示例：ALLOWED_ORIGINS=http://localhost:8000,http://192.168.1.100:8000
+# CORS allows local access only; configure ALLOWED_ORIGINS when deploying
+# Example: ALLOWED_ORIGINS=http://localhost:8000,http://192.168.1.100:8000
 _default_origins = [
     "http://127.0.0.1:8000",
     "http://localhost:8000",
-    "null",  # 支持 file:// 协议直接打开 player.html
+    "null",  # Support legacy clients opened directly using the file:// protocol
 ]
 _env_origins = os.environ.get("ALLOWED_ORIGINS", "")
 _allowed_origins = [o.strip() for o in _env_origins.split(",") if o.strip()] if _env_origins else _default_origins
@@ -53,12 +53,12 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------
-# 【统一错误处理】：所有异常统一为 {"status":"error","message":"..."}
-# 前端只需检查 response.status === "error" 即可
+# 【Unified error handling】：All exceptions are normalized to {"status":"error","message":"..."}
+# The frontend only needs to check response.status === "error"
 # ---------------------------------------------------------
 @app.exception_handler(fastapi.HTTPException)
 async def http_exception_handler(request, exc: fastapi.HTTPException):
-    """将 HTTPException 统一为 JSON 格式，不再返回 FastAPI 默认的 {"detail":"..."}"""
+    """Normalize HTTPException responses to JSON instead of FastAPI's default {"detail":"..."}."""
     return JSONResponse(
         status_code=exc.status_code,
         content={"status": "error", "message": exc.detail},
@@ -66,16 +66,16 @@ async def http_exception_handler(request, exc: fastapi.HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
-    """将参数校验错误统一为 JSON 格式"""
+    """Normalize parameter validation errors to JSON"""
     errors = exc.errors()
-    msg = "; ".join(f"{e.get('loc',['?'])[-1]}: {e.get('msg','未知错误')}" for e in errors)
+    msg = "; ".join(f"{e.get('loc',['?'])[-1]}: {e.get('msg','Unknown error')}" for e in errors)
     return JSONResponse(
         status_code=422,
-        content={"status": "error", "message": f"参数校验失败: {msg}"},
+        content={"status": "error", "message": f"Parameter validation failed: {msg}"},
     )
 
 # ---------------------------------------------------------
-# 【模块化】：挂载独立地图模块
+# 【Modular architecture】：Mount separate map module
 # ---------------------------------------------------------
 from map import map_router, init_map_tables, set_db_file as map_set_db_file
 from map import get_map_context as _get_map_context
@@ -84,7 +84,7 @@ from map import export_map_data, import_map_data, clear_map_data
 app.include_router(map_router)
 
 # ---------------------------------------------------------
-# 【模块化】：挂载 RAG 知识库模块
+# 【Modular architecture】：Mount the RAG knowledge-base module
 # ---------------------------------------------------------
 from rag import rag_router, configure_rag, init_rag_tables
 from rag import chunk_text as _chunk_text, get_embeddings as _get_embeddings
@@ -93,7 +93,7 @@ from rag import refresh_vector_cache as _refresh_vector_cache
 app.include_router(rag_router)
 
 # ---------------------------------------------------------
-# 【模块化】：挂载 AI Agent 模块（含 SSE 流式推演）
+# 【Modular architecture】：Mount the AI Agent module (including SSE streaming simulation)
 # ---------------------------------------------------------
 from agent import agent_router, configure_agent
 from agent import build_system_context as get_system_context
@@ -102,7 +102,7 @@ from scene_service import scene_router, configure_scene
 app.include_router(scene_router)
 
 # ---------------------------------------------------------
-# 【模块化】：挂载记忆系统模块
+# [Modular architecture]: mount the memory system module
 # ---------------------------------------------------------
 from memory import memory_router, configure_memory
 from memory import _l1_append
@@ -113,13 +113,13 @@ from memory import MEMORY_FOLD_THRESHOLD, MEMORY_SUMMARY_LIMIT
 app.include_router(memory_router)
 
 # ---------------------------------------------------------
-# 【模块化】：挂载触发器系统模块
+# 【Modular architecture】：Mount trigger module
 # ---------------------------------------------------------
 from trigger import trigger_router, configure_trigger
 app.include_router(trigger_router)
 
 # ---------------------------------------------------------
-# 【模块化】：挂载世界实体模块
+# [Modular architecture]: mount the world entities module
 # ---------------------------------------------------------
 from entity import entity_router, configure_entity
 from entity import get_world_entities_text as _get_world_entities_text
@@ -127,26 +127,26 @@ from entity import ai_extract_and_upsert_entities as _ai_extract_and_upsert_enti
 app.include_router(entity_router)
 
 # ---------------------------------------------------------
-# 【模块化】：挂载时间线模块
+# 【Modular architecture】：Mount timeline module
 # ---------------------------------------------------------
 from timeline import timeline_router, configure_timeline
 app.include_router(timeline_router)
 
 # ---------------------------------------------------------
-# 配置区与绝对路径锁定 (修复打包后变空白、找不到文件的问题)
+# Configuration and absolute-path resolution (fixes blank screens and missing files in packaged builds)
 # ---------------------------------------------------------
 import sys
 import os
 
-# 【关键修复】：识别当前是源码运行，还是 exe 运行
+# 【Critical fix】：Identify whether running from source or as an executable
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 【安全】：从 .env 文件或系统环境变量中加载 API Key，绝不硬编码
-# 安装方式：pip install python-dotenv
-# 使用方式：在 main.py 同级目录创建 .env 文件，写入：
+# [Security]: load API keys from .env or environment variables; never hardcode credentials
+# Installation：pip install python-dotenv
+# Usage：Create a .env file alongside main.py containing:
 #   APERTUS_BASE_URL=https://api.inference.cscs.ch/v1
 #   SILICONFLOW_API_KEY=sk-xxx
 #   APERTUS_MODEL=swiss-ai/Apertus-v1.5-70B
@@ -175,24 +175,24 @@ if os.path.isfile(DB_FILE):
 CAMPAIGNS_DIR = os.environ.get('RPG_CAMPAIGNS_DIR', os.path.join(BASE_DIR, "campaigns"))
 os.makedirs(CAMPAIGNS_DIR, exist_ok=True)
 
-# 【模块化】：将 DB 路径注入地图模块
+# 【Modular architecture】：Inject DB path into map module
 map_set_db_file(DB_FILE)
 
-# 【模块化】：配置 RAG 模块
+# 【Modular architecture】：Configure RAG module
 configure_rag(DB_FILE, generation.settings.embedding_key, generation.settings.embedding_url)
 
-# 【模块化】：配置记忆系统模块
+# [Modular architecture]: configure memory system module
 configure_memory(DB_FILE, client, fn_get_embeddings=_get_embeddings)
 
-# 【模块化】：配置世界实体模块
+# [Modular architecture]: configure world entities module
 configure_entity(DB_FILE, client)
 
-# 【模块化】：配置时间线模块（tl_append_memory 延迟到 startup 注入）
+# 【Modular architecture】：Configure timeline module (defer tl_append_memory injection until startup)
 configure_timeline(DB_FILE, client, fn_tl_append_memory=_tl_append_memory,
                    memory_summary_limit=MEMORY_SUMMARY_LIMIT)
 
 # ---------------------------------------------------------
-# 【Persona 模式】：启动时加载 persona_mode.json（若存在）
+# 【Persona mode】：Load persona_mode.json at startup if present
 # ---------------------------------------------------------
 def _load_persona_config() -> dict:
     path = os.path.join(BASE_DIR, "persona_mode.json")
@@ -209,7 +209,7 @@ PERSONA_CONFIG = _load_persona_config()
 
 
 # ---------------------------------------------------------
-# 数据库初始化
+# Database initialization
 # ---------------------------------------------------------
 from contextlib import contextmanager
 from logger import get_logger
@@ -223,11 +223,11 @@ def get_db_connection():
 @contextmanager
 def safe_db():
     """
-    安全的数据库连接 context manager。
-    用法：
+    Safe database connection context manager.
+    Usage：
         with safe_db() as conn:
             conn.execute(...)
-    保证连接在正常退出和异常时都会关闭，且异常时自动回滚。
+    Ensure connections close on both success and failure, and roll back on exceptions.
     """
     conn = get_db_connection()
     try:
@@ -247,13 +247,13 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS characters (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, role TEXT, hp INTEGER, san INTEGER, inventory TEXT DEFAULT '', status TEXT DEFAULT 'active')''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS system_state (key TEXT PRIMARY KEY, value TEXT)''')
     
-    # 【新增】：百科库数据表
+    # [New]: encyclopedia database tables
     cursor.execute('''CREATE TABLE IF NOT EXISTS lorebook (id INTEGER PRIMARY KEY AUTOINCREMENT, keywords TEXT, content TEXT)''')
 
-    # 【关键节点触发器表】
+    # 【Key scene trigger table】
     cursor.execute('''CREATE TABLE IF NOT EXISTS triggers (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        label       TEXT    NOT NULL DEFAULT '未命名触发器',
+        label       TEXT    NOT NULL DEFAULT 'Untitled trigger',
         target_node_id INTEGER NOT NULL,
         mode        TEXT    NOT NULL DEFAULT 'soft',
         cond_type   TEXT    NOT NULL DEFAULT '',
@@ -261,16 +261,16 @@ def init_db():
         conditions  TEXT    NOT NULL DEFAULT '[]',
         fired       INTEGER NOT NULL DEFAULT 0
     )''')
-    # 兼容旧数据库：若 triggers 表缺少 conditions 列则自动添加
+    # Legacy database compatibility: add the conditions column to triggers if absent
     try:
         cursor.execute("SELECT conditions FROM triggers LIMIT 1")
     except Exception:
         cursor.execute("ALTER TABLE triggers ADD COLUMN conditions TEXT NOT NULL DEFAULT '[]'")
 
-    # 【多时间线并行】：时间线表
+    # 【Parallel timelines】：Timeline table
     cursor.execute('''CREATE TABLE IF NOT EXISTS timelines (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
-        label           TEXT    NOT NULL DEFAULT '时间线',
+        label           TEXT    NOT NULL DEFAULT 'Timeline',
         color           TEXT    NOT NULL DEFAULT '#5b9cf5',
         current_node_id INTEGER,
         current_room_id INTEGER,
@@ -280,11 +280,11 @@ def init_db():
         created_at      TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
     )''')
 
-    # 【世界实体注册表】：跨时间线共享的可变世界状态
-    # 这是解决"同一NPC在不同时间线重复出现"问题的核心层
+    # [World entity registry]: shared mutable world state across timelines
+    # Core layer preventing the same NPC from being duplicated across timelines
     # entity_type: npc | location | event
-    # status:      active（正常）| dead（死亡）| moved（已离场）| resolved（事件结束）
-    # last_seen_by: 最后接触该实体的时间线标签，供AI理解"谁知道这件事"
+    # status:      active(normal)| dead(dead)| moved(left)| resolved(event resolved)
+    # last_seen_by: label of the last timeline to interact with the entity, so AI knows who knows what
     cursor.execute('''CREATE TABLE IF NOT EXISTS world_entities (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         entity_type  TEXT NOT NULL DEFAULT 'npc',
@@ -297,13 +297,13 @@ def init_db():
         room_id      INTEGER
     )''')
 
-    # 【本地 RAG 知识库】：由独立模块 rag.py 管理
+    # 【Local RAG knowledge base】：Managed by the separate rag.py module
     conn.commit()
     init_rag_tables()
 
-    # 【三级记忆系统 - L1 短期工作区】
-    # 保存最近 N 次推演的完整上下文快照（场景名、玩家动作、AI结果摘要、思考过程）
-    # 每条记录对应一次推演，按时间排序，超限时最旧的记录被淘汰到 L3
+    # [Three-level memory system — L1 short-term working memory]
+    # Store snapshots for the latest N simulations (scene, player action, AI summary, reasoning)
+    # Each record represents a simulation, ordered by time; the oldest are evicted to L3 when over capacity
     cursor.execute('''CREATE TABLE IF NOT EXISTS memory_l1 (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         scene_name  TEXT    NOT NULL DEFAULT '',
@@ -313,14 +313,14 @@ def init_db():
         entity_updates TEXT NOT NULL DEFAULT '',
         created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
     )''')
-    # 迁移：为旧库补充 timeline_id 列（已有列时静默跳过）
+    # Migration: add timeline_id to legacy databases (silently skip if present)
     try:
         cursor.execute("ALTER TABLE memory_l1 ADD COLUMN timeline_id INTEGER DEFAULT NULL")
     except Exception:
         pass
 
-    # 【待执行副作用表】：AI 推演 Phase 1 写入，扩写确认后 Phase 3 执行
-    # 替代原来塞在 nodes.summary 中的 __FX__ 机制，避免 GM 手动编辑节点时损坏数据
+    # 【Pending side-effects table】：Written in simulation Phase 1, applied in Phase 3 after expansion approval
+    # Replaces the old __FX__ mechanism in nodes.summary to prevent damage during manual editing
     cursor.execute('''CREATE TABLE IF NOT EXISTS pending_effects (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         node_id     INTEGER NOT NULL UNIQUE,
@@ -329,36 +329,36 @@ def init_db():
         FOREIGN KEY(node_id) REFERENCES nodes(id) ON DELETE CASCADE
     )''')
 
-    # 【地图系统】：由独立模块 map.py 管理
+    # [Map system]: managed by the separate map.py module
     conn.commit()
     init_map_tables()
 
-    # 平滑升级：如果旧数据库没有 inventory 字段，尝试加上去
+    # Smooth migration: add inventory to legacy databases if missing
     try: cursor.execute("ALTER TABLE characters ADD COLUMN inventory TEXT DEFAULT ''")
     except sqlite3.OperationalError: pass
-    # 平滑升级：characters 加 status 字段
+    # Smooth migration: add status to characters
     try: cursor.execute("ALTER TABLE characters ADD COLUMN status TEXT DEFAULT 'active'")
     except sqlite3.OperationalError: pass
-    # 平滑升级：characters 加 personality 字段（与 inventory 解耦）
+    # Smooth migration: add personality to characters (independent of inventory)
     try: cursor.execute("ALTER TABLE characters ADD COLUMN personality TEXT DEFAULT ''")
     except sqlite3.OperationalError: pass
-    # 平滑升级：旧 map_rooms 表加 floor 字段
+    # Smooth migration: add floor to legacy map_rooms
     try: cursor.execute("ALTER TABLE map_rooms ADD COLUMN floor INTEGER NOT NULL DEFAULT 1")
     except sqlite3.OperationalError: pass
-    # 平滑升级：world_entities 加 room_id（实体坐标化）
+    # Smooth migration: add room_id to world_entities (spatial placement)
     try: cursor.execute("ALTER TABLE world_entities ADD COLUMN room_id INTEGER")
     except sqlite3.OperationalError: pass
-    # 平滑升级：world_entities 加 aliases（别名/描述词列表，用于同一实体多名称匹配）
+    # Smooth migration: add aliases to world_entities (alternate names/descriptions for matching)
     try: cursor.execute("ALTER TABLE world_entities ADD COLUMN aliases TEXT NOT NULL DEFAULT '[]'")
     except sqlite3.OperationalError: pass
-    # 平滑升级：timelines 加 current_room_id（时间线坐标）
+    # Smooth migration: add current_room_id to timelines (timeline position)
     try: cursor.execute("ALTER TABLE timelines ADD COLUMN current_room_id INTEGER")
     except sqlite3.OperationalError: pass
-    # 平滑升级：nodes 加 expanded_content 字段（AI扩写叙事持久化）
+    # Smooth migration: add expanded_content to nodes (persist expanded AI narrative)
     try: cursor.execute("ALTER TABLE nodes ADD COLUMN expanded_content TEXT DEFAULT ''")
     except sqlite3.OperationalError: pass
 
-    # 【手机聊天记录】：NPC 私聊消息持久化
+    # 【Mobile chat logs】：Persist private NPC chat messages
     cursor.execute('''CREATE TABLE IF NOT EXISTS npc_chat_logs (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         npc_name   TEXT    NOT NULL,
@@ -370,7 +370,7 @@ def init_db():
     try: cursor.execute("ALTER TABLE npc_chat_logs ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))")
     except sqlite3.OperationalError: pass
 
-    # 【时间回溯】：游戏状态快照表，保留最近10条
+    # [Time rollback]: game state snapshots, retaining the latest ten
     cursor.execute('''CREATE TABLE IF NOT EXISTS game_checkpoints (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         from_node_id INTEGER NOT NULL,
@@ -378,8 +378,8 @@ def init_db():
         created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
     )''')
 
-    # 【战报史册】：永久记录玩家经过的每个场景快照（不参与折叠/淘汰）
-    # 用于 export-battle-report 增量式生成：每次只读 id > last_chronicle_position 的新条目
+    # [Battle chronicle]: permanently log every player-visited scene, without compaction or eviction
+    # For incremental export-battle-report generation, read only entries with id > last_chronicle_position
     cursor.execute('''CREATE TABLE IF NOT EXISTS chronicle_log (
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
         scene_id          INTEGER NOT NULL DEFAULT 0,
@@ -392,9 +392,9 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_chronicle_scene ON chronicle_log(scene_id)")
     cursor.execute("INSERT OR IGNORE INTO system_state (key, value) VALUES ('last_chronicle_position', '0')")
 
-    # 初始化本地剧情记忆流字段
-    cursor.execute("INSERT OR IGNORE INTO system_state (key, value) VALUES ('session_memory', '【跑团记忆日志已初始化】\n')")
-    # 投屏端同步状态
+    # Initialize the local story memory stream
+    cursor.execute("INSERT OR IGNORE INTO system_state (key, value) VALUES ('session_memory', '[Tabletop RPG memory log initialized]\n')")
+    # Spectator screen synchronizationState
     cursor.execute("INSERT OR IGNORE INTO system_state (key, value) VALUES ('player_current_scene_id', '')")
     cursor.execute("INSERT OR IGNORE INTO system_state (key, value) VALUES ('player_scene_ai_text', '')")
     cursor.execute("INSERT OR IGNORE INTO system_state (key, value) VALUES ('player_bgm_url', '')")
@@ -426,8 +426,8 @@ def health():
     return {'status': 'success', 'database': 'ok'}
 
 # ---------------------------------------------------------
-# 【模块化】：配置 Agent 模块（注入所有依赖函数）
-# 使用 startup 事件延迟执行，确保所有函数已定义
+# 【Modular architecture】：Configure Agent module (inject all dependencies)
+# Defer to the startup event so all functions are defined
 # ---------------------------------------------------------
 @app.on_event("startup")
 def _startup_wire_agent():
@@ -450,7 +450,7 @@ def _startup_wire_agent():
         fn_get_embeddings=_get_embeddings,
         fn_refresh_vector_cache=_refresh_vector_cache,
     )
-    # 触发器模块需要 get_system_context（来自 agent），在 agent 配置完成后注入
+    # Trigger module needs get_system_context (from agent); inject after agent setup
     configure_trigger(
         db_file=DB_FILE,
         generation_client=client,
@@ -461,10 +461,10 @@ def _startup_wire_agent():
     start_worker(DB_FILE)
 
 # ---------------------------------------------------------
-# 数据模型定义（供 API 请求体使用，CRUD 模型已迁移至各自模块）
+# Data model definitions (for API request bodies; CRUD models moved to their respective modules)
 # ---------------------------------------------------------
 class AIContextRequest(BaseModel): scene_name: str = ""; content: str = ""
-# DynamicActionRequest 已移至 agent.py
+# DynamicActionRequest Moved to agent.py
 class CharUpdateRequest(BaseModel):
     name: str | None = None
     hp: int; san: int; inventory: str = ""; personality: str = ""
@@ -498,7 +498,7 @@ class AutoNPCRequest(BaseModel):
     operation_key: str | None = Field(default=None, min_length=1, max_length=200)
 
 
-# 【多时间线推演】：数据模型（CRUD 模型已迁移至 timeline.py）
+# 【Multi-timeline simulation】：Data models (CRUD models moved to timeline.py)
 class TimelineDynamicRequest(BaseModel):
     timeline_id: int | None = None
     current_node_id: int
@@ -507,34 +507,34 @@ class TimelineDynamicRequest(BaseModel):
     player_action: str = ""
     action_type: str = "auto"
 
-# 【地图系统】：数据模型已移至 map.py（通过 map_router 自动注册）
+# [Map system]: data models moved to map.py (registered automatically through map_router)
 
 # ---------------------------------------------------------
-# API 接口：剧本与存档管理（支持模块化文件夹结构）
+# API endpoints：Campaign and save management (supports modular folder structure)
 # ---------------------------------------------------------
-# 文件夹结构：
+# Folder structure：
 #   campaigns/
-#     我的剧本/
-#       campaign.json    ← 剧目（节点、角色、世界观、触发器等）
-#       map.json         ← 地图（房间、通道）
-#       knowledge/       ← 知识库
-#         *.txt / *.md   ← RAG 文档
-#   *.json               ← 兼容旧版单文件存档（平铺在 BASE_DIR 下）
+#     My campaign/
+#       campaign.json    <- Campaign (nodes, characters, worldview, triggers, etc.)
+#       map.json         ← Map (rooms, passages)
+#       knowledge/       ← Knowledge base
+#         *.txt / *.md   ← RAG documents
+#   *.json               <- Legacy single-file saves stored directly in BASE_DIR
 # ---------------------------------------------------------
 
 @app.get("/api/campaigns")
 def list_campaigns():
-    """列出所有可加载的剧本（兼容旧版单文件 + 新版文件夹结构）"""
+    """List loadable campaigns (legacy single files and new folder-based format)"""
     from campaigns import is_campaign_file
     results = []
 
-    # 旧版：BASE_DIR 下的 *.json（向后兼容）
+    # Legacy: *.json under BASE_DIR (backward compatible)
     for f in glob.glob(os.path.join(BASE_DIR, "*.json")):
         fname = os.path.basename(f)
         if fname.startswith("persona_mode") or not is_campaign_file(f): continue
         results.append({"name": fname, "type": "legacy", "path": fname})
 
-    # 新版：campaigns/ 下的子文件夹（含 campaign.json）
+    # New: subfolders under campaigns/ containing campaign.json
     if os.path.isdir(CAMPAIGNS_DIR):
         for d in sorted(os.listdir(CAMPAIGNS_DIR)):
             folder = os.path.join(CAMPAIGNS_DIR, d)
@@ -554,7 +554,7 @@ def list_campaigns():
                     "kb_count": kb_count
                 })
 
-    # 向后兼容：同时返回旧版字符串数组格式（供未升级的前端使用）
+    # Backward compatibility: also return the old array-of-strings format for unupgraded frontends
     files_legacy = [r["path"] for r in results]
     return {"status": "success", "files": results, "files_legacy": files_legacy}
 
@@ -577,8 +577,8 @@ def export_campaign(req: ExportSaveRequest = ExportSaveRequest()):
 
 
 # ---------------------------------------------------------
-# 【记忆系统】：已迁移至 memory.py（通过 app.include_router(memory_router) 自动注册）
-# append_to_memory, _l1_append, _l1_get_working_context, _tl_append_memory 通过顶部 import 引入
+# [Memory system]: moved to memory.py (registered via app.include_router(memory_router))
+# append_to_memory, _l1_append, _l1_get_working_context, _tl_append_memory Imported at the top
 # ---------------------------------------------------------
 
 @app.get("/api/game/lorebook")
@@ -604,7 +604,7 @@ def delete_lore(lore_id: int):
     return {"status": "success"}
 
 # ---------------------------------------------------------
-# API 接口：词条库、世界观、节点 CRUD (原样保留)
+# API endpoints: lorebook, worldview, and node CRUD (preserved)
 # ---------------------------------------------------------
 @app.get("/api/game/worldview")
 def get_worldview():
@@ -622,7 +622,7 @@ def update_worldview(req: StringContentRequest):
 
 @app.get("/api/game/stat-labels")
 def get_stat_labels():
-    """获取 HP/SAN 的自定义显示名。"""
+    """Get custom display labels for HP/SAN."""
     with safe_db() as conn:
         hp_row = conn.execute("SELECT value FROM system_state WHERE key='hp_label'").fetchone()
         san_row = conn.execute("SELECT value FROM system_state WHERE key='san_label'").fetchone()
@@ -634,7 +634,7 @@ class StatLabelsRequest(BaseModel):
 
 @app.put("/api/game/stat-labels")
 def update_stat_labels(req: StatLabelsRequest):
-    """更新 HP/SAN 显示名。"""
+    """Update display labels for HP/SAN."""
     with safe_db() as conn:
         conn.execute("INSERT OR REPLACE INTO system_state (key, value) VALUES ('hp_label', ?)", (req.hp_label[:20],))
         conn.execute("INSERT OR REPLACE INTO system_state (key, value) VALUES ('san_label', ?)", (req.san_label[:20],))
@@ -677,7 +677,7 @@ def get_game_state():
 def update_character(char_id: int, req: CharUpdateRequest):
     with safe_db() as conn, atomic(conn):
         previous=conn.execute('SELECT * FROM characters WHERE id=?',(char_id,)).fetchone()
-        if previous is None: raise fastapi.HTTPException(404,'角色不存在')
+        if previous is None: raise fastapi.HTTPException(404,'Character not found')
         if req.name is not None and req.name.strip():
             conn.execute("UPDATE characters SET name=?, hp=?, san=?, inventory=?, personality=?, status=? WHERE id=?",
                          (req.name.strip()[:50], req.hp, req.san, req.inventory, req.personality, req.status, char_id))
@@ -691,7 +691,7 @@ def update_character(char_id: int, req: CharUpdateRequest):
             aliases=json.loads(entity['aliases'] or '[]')
             if previous['name']!=req.name and previous['name'] not in aliases: aliases.append(previous['name'])
             conn.execute("UPDATE world_entities SET name=?,aliases=? WHERE uid=?", (req.name.strip()[:50],encode(aliases),uid))
-        record_event(conn,"character_edit","更新角色",{"entity_uid":uid})
+        record_event(conn,"character_edit","Update character",{"entity_uid":uid})
         refresh_wiki(conn)
         conn.commit()
     return {"status": "success"}
@@ -709,9 +709,9 @@ def update_node(node_id: int, req: NodeUpdateRequest):
     with safe_db() as conn, atomic(conn):
         previous = conn.execute('SELECT name,summary,content FROM nodes WHERE id=?', (node_id,)).fetchone()
         if previous is None:
-            raise fastapi.HTTPException(404, '场景已被删除，请刷新工作台')
+            raise fastapi.HTTPException(404, 'Scene has been deleted; refresh the workbench')
         if req.expected_fields is not None and req.expected_fields != [previous[key] or '' for key in ('name','summary','content')]:
-            raise fastapi.HTTPException(409, '另一台设备已修改此场景。请先复制保留你的修改，放弃本次编辑以读取最新内容，再重新编辑。')
+            raise fastapi.HTTPException(409, 'This scene was modified on another device. Copy your changes, discard this edit to load the latest version, then edit it again.')
         conn.execute("UPDATE nodes SET name=?, summary=?, content=? WHERE id=?", (req.name, req.summary, req.content, node_id))
     return {"status": "success"}
 
@@ -739,13 +739,13 @@ def delete_option(option_id: int):
     return {"status": "success"}
 
 # ---------------------------------------------------------
-# 【新增核心】：打包提取四大维度的全知上下文
+# 【New core feature】：Assemble omniscient context across four dimensions
 # ---------------------------------------------------------
 
 def _build_persona_instruction() -> str:
     """
-    将 persona_mode.json 的核心规则、MBTI 池、癖好池组装为可注入 system prompt 的文本块。
-    若 persona_mode 未启用则返回空字符串，对已有逻辑零影响。
+    Assemble rules, MBTI traits and quirk pools from persona_mode.json into text that can be injected into a system prompt.
+    If persona_mode is disabled, return an empty string without affecting existing logic.
     """
     if not PERSONA_CONFIG:
         return ""
@@ -755,28 +755,28 @@ def _build_persona_instruction() -> str:
         lines.append(npc_rule)
     mbti_pool = PERSONA_CONFIG.get("mbti_pool", [])
     if mbti_pool:
-        lines.append("【可用MBTI类型池】" + " | ".join(mbti_pool))
+        lines.append("【Available MBTI types】" + " | ".join(mbti_pool))
     quirk_pool = PERSONA_CONFIG.get("quirk_pool", [])
     if quirk_pool:
-        lines.append("【可用行为癖好池】" + " | ".join(quirk_pool))
+        lines.append("【Available behavioral quirks】" + " | ".join(quirk_pool))
     return "\n".join(filter(None, lines))
 
 
 # ---------------------------------------------------------
-# 【世界实体】：已迁移至 entity.py
-# _get_world_entities_text, _ai_extract_and_upsert_entities 通过顶部 import 引入
+# 【World Entities】：Moved to entity.py
+# _get_world_entities_text, _ai_extract_and_upsert_entities Imported at the top
 # ---------------------------------------------------------
 
 
 # =============================================================
-# 【RAG 知识库引擎】：已迁移至 rag.py
+# [RAG knowledge-base engine]: moved to rag.py
 # =============================================================
 
 
-# _get_map_context 和 _auto_place_room 已移至 map.py
-# 通过顶部 from map import get_map_context as _get_map_context 引入
+# _get_map_context and _auto_place_room were moved to map.py
+# Imported above via from map import get_map_context as _get_map_context
 # ---------------------------------------------------------
-# 【地图-AI 联动引擎】：处理 AI 返回的 map_actions
+# [Map-AI integration]: process map_actions returned by AI
 # ---------------------------------------------------------
 def _process_map_actions(conn,parsed,current_room_id,timeline_id=None,scene_node_id=None):
     from map_effects import apply_map_actions
@@ -784,7 +784,7 @@ def _process_map_actions(conn,parsed,current_room_id,timeline_id=None,scene_node
 
 
 def _get_current_room_id(conn, timeline_id: int | None = None) -> int | None:
-    """获取当前房间 ID（支持时间线模式）"""
+    """Get current room ID (supports timeline mode)"""
     if timeline_id:
         tl = conn.execute(
             "SELECT current_room_id FROM timelines WHERE id=?", (timeline_id,)
@@ -798,27 +798,27 @@ def _get_current_room_id(conn, timeline_id: int | None = None) -> int | None:
 
 
 # get_system_context, expand_scene_text, generate_dynamic_options
-# 已迁移至 agent.py（通过 app.include_router(agent_router) 自动注册）
+# Moved to agent.py (registered via app.include_router(agent_router))
 
 # ---------------------------------------------------------
-# API 接口：角色管理 (新增/删除)
+# API endpoints：Character management (create/delete)
 # ---------------------------------------------------------
 @app.post("/api/game/character")
 def create_character(req: CharCreateRequest):
     with safe_db() as conn, atomic(conn):
         from world import state_token
         if req.expected_token and req.expected_token!=state_token(conn):
-            raise fastapi.HTTPException(409,'世界已更新，新角色尚未创建，请重试')
+            raise fastapi.HTTPException(409,'World updated; new character was not created; try again')
         uid = req.entity_uid
         if uid:
             from world import resolve_entity
             resolve_entity(conn, uid=uid)
             if conn.execute("SELECT id FROM characters WHERE entity_uid=?", (uid,)).fetchone():
-                raise fastapi.HTTPException(409, "实体已关联角色，请使用更新接口")
+                raise fastapi.HTTPException(409, "Entity is already linked to a character; use the update endpoint")
         char_id = conn.execute("INSERT INTO characters(name,role,hp,san,inventory,personality,status,entity_uid) VALUES(?,?,?,?,?,?,?,?)",
             (req.name,req.role,req.hp,req.san,req.inventory,req.personality,req.status,uid)).lastrowid
         uid = link_character(conn, char_id, uid, new=True)
-        record_event(conn, "character_create", f"角色 {req.name} 登记", {"entity_uid":uid})
+        record_event(conn, "character_create", f"Character {req.name} registered", {"entity_uid":uid})
         refresh_wiki(conn)
     return {"status":"success", "id":char_id, "entity_uid":uid}
 
@@ -828,7 +828,7 @@ def delete_character(char_id: int):
     with safe_db() as conn:
         result = conn.execute("SELECT id FROM characters WHERE id = ?", (char_id,)).fetchone()
         if not result:
-            raise fastapi.HTTPException(status_code=404, detail="角色不存在")
+            raise fastapi.HTTPException(status_code=404, detail="Character not found")
         conn.execute("DELETE FROM characters WHERE id = ?", (char_id,))
         conn.commit()
     return {"status": "success"}
@@ -847,7 +847,7 @@ app.include_router(npc_review_router)
 
 
 # ---------------------------------------------------------
-# API 接口：跳转场景时自动检测是否需要生成 NPC
+# API endpoints: automatically check whether a new NPC is required on scene navigation
 # ---------------------------------------------------------
 class CheckNPCRequest(BaseModel):
     scene_name: str
@@ -860,12 +860,12 @@ def check_npc_on_enter(request:CheckNPCRequest):
         ctx=get_system_context(conn,request.scene_name,request.scene_content)
     from providers import evaluate
     result=evaluate({"scene":request.scene_content,"entities":ctx[5]}, {"new_npc":{"type":"noul",
-          "instructions":"场景是否明确需要一个尚未登记的新NPC立即登场？不要将已有实体判为新身份。"}})['new_npc']
+          "instructions":"Does this scene explicitly require an unregistered new NPC to appear now? Do not mistake existing entities for new identities."}})['new_npc']
     return {"status":"success","spawned_npc":None,"suggest_generation":result.status=='ok' and result.value>=.9}
 
 
 # ---------------------------------------------------------
-# 【触发器系统】：已迁移至 trigger.py（通过 app.include_router(trigger_router) 自动注册）
+# [Trigger system]: moved to trigger.py (registered via app.include_router(trigger_router))
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
@@ -873,7 +873,7 @@ def check_npc_on_enter(request:CheckNPCRequest):
 
 
 # ---------------------------------------------------------
-# API 接口：战报/小说导出
+# API endpoints：Battle report/novel export
 # ---------------------------------------------------------
 @app.get("/api/debug/battle-report-state")
 def debug_battle_report_state():
@@ -893,11 +893,11 @@ def debug_battle_report_state():
 @app.post("/api/ai/export-battle-report")
 def export_battle_report():
     """
-    增量式战报生成：
-      - 输入源不再是 session_memory，而是 chronicle_log 中 id > last_chronicle_position 的所有新场景快照
-        （每条包含场景名、content、深入调查后的 expanded_content、玩家动作）
-      - 生成完成后将 last_chronicle_position 推进到本次最大 id
-      - 每次另存为一个新的 .md 文件，不重复生成之前已写过的部分
+    Incremental battle-report generation：
+      - Inputs are no longer from session_memory, but from new scene snapshots in chronicle_log with id > last_chronicle_position
+        (each with scene name, content, expanded_content after investigation, and player action)
+      - After generation, advance last_chronicle_position to the highest processed ID
+      - Save each output to a new .md file without regenerating previously written text
     """
     conn = get_db_connection()
     pos_row = conn.execute(
@@ -919,7 +919,7 @@ def export_battle_report():
         pending = regen_row and regen_row["value"] == "1"
 
         if not pending:
-            # 第一次无新场景：告知用户，并立 flag 等待下次重新生成
+            # On first request with no new scenes, notify user and set flag for regeneration
             conn.execute(
                 "INSERT OR REPLACE INTO system_state (key, value) VALUES ('pending_regenerate', '1')"
             )
@@ -927,11 +927,11 @@ def export_battle_report():
             conn.close()
             return {
                 "status": "success",
-                "report": "（自上次生成以来暂无新场景，无需续写。）",
+                "report": "(No new scenes since the previous generation; nothing to continue.)",
                 "filename": "",
             }
 
-        # 第二次（用户点重新生成后触发）：拉取上一章全部场景重新生成
+        # On second request (user selected regenerate), regenerate all scenes from the previous chapter
         if last_pos > 0:
             rows = conn.execute(
                 "SELECT * FROM chronicle_log WHERE id <= ? ORDER BY id ASC", (last_pos,)
@@ -948,50 +948,50 @@ def export_battle_report():
             conn.close()
             return {
                 "status": "success",
-                "report": "（暂无可生成的场景记录。）",
+                "report": "(No scene records available for generation.)",
                 "filename": "",
             }
         is_regenerate = True
     else:
         is_regenerate = False
-        # 有新场景时清除 flag
+        # Clear flag when new scenes become available
         conn.execute(
             "INSERT OR REPLACE INTO system_state (key, value) VALUES ('pending_regenerate', '0')"
         )
 
     worldview = wv_row["value"] if wv_row else ""
-    char_list = "、".join([c["name"] for c in chars]) or "未知角色"
+    char_list = ", ".join([c["name"] for c in chars]) or "Unknown characters"
 
-    # 拼接结构化输入：按时间顺序逐场景列出
+    # Assemble structured input: scene-by-scene in chronological order
     parts = []
     for i, r in enumerate(rows, 1):
-        parts.append(f"## 场景 {i}：{r['scene_name'] or '未命名场景'}")
+        parts.append(f"## Scene {i}：{r['scene_name'] or 'UntitledScene'}")
         if r["player_action"]:
-            parts.append(f"**玩家动作**：{r['player_action']}")
+            parts.append(f"**Player action**: {r['player_action']}")
         if r["scene_content"]:
-            parts.append(f"**场景描写**：\n{r['scene_content']}")
+            parts.append(f"**Scene description**:\n{r['scene_content']}")
         if r["expanded_content"]:
-            parts.append(f"**深入调查**：\n{r['expanded_content']}")
-        parts.append("")  # 空行分隔
+            parts.append(f"**Detailed investigation**：\n{r['expanded_content']}")
+        parts.append("")  # Separate with blank lines
     structured_input = "\n".join(parts)
 
     is_continuation = last_pos > 0 and not is_regenerate
     system_prompt = (
-        "你是一位才华横溢的奇幻小说作者。下面提供按时间顺序排列的若干场景快照，"
-        "每个场景包含玩家动作、场景描写、（可选的）深入调查细节。"
-        "请将其润色为一段排版精美、文笔优美的奇幻战报/小说章节。要求："
-        "- 使用 Markdown 格式，包含标题、段落分节，长度根据场景数量自然延伸，不要强行截断"
-        "- 严格按场景给定的时间顺序展开，保留所有人名、地点、关键事件，不得改变剧情走向"
-        "- 充分利用「深入调查」中的细节进行环境与氛围描写"
-        "- 文笔生动、有代入感"
+        "You are a talented fantasy novelist. Below are several scene snapshots in chronological order,"
+        "each containing the player's actions, scene descriptions, and optional in-depth investigation details."
+        "Polish them into a beautifully formatted and written fantasy battle-report/novel chapter. Requirements:"
+        "- Use Markdown with a title and sectioned paragraphs. Let length follow the number of scenes without arbitrary truncation"
+        "- Follow the given scene chronology strictly, preserving names, locations, and key events without changing the plot"
+        "- Use details from the in-depth investigation to enrich setting and atmosphere"
+        "- Write vividly and immersively"
         + (
-            "- 这是续章，请用一个承接上一章的简短开篇过渡几句，不要重复之前章节中已经叙述过的剧情"
+            "- This is a continuation chapter. Start with a brief transition from the previous chapter, without repeating its events"
             if is_continuation else
-            "- 这是开篇第一章"
+            "- This is the opening chapter"
         )
-        + "- 结尾加一句「（本章完）」"
-        + f"【世界观背景】{worldview}"
-        + f"【主要角色】{char_list}"
+        + '- End with "(End of chapter)"'
+        + f"[Worldview background] {worldview}"
+        + f"[Main characters] {char_list}"
     )
 
     try:
@@ -999,14 +999,14 @@ def export_battle_report():
             model=generation.settings.model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": f"以下是本次需要润色的场景快照：\n\n{structured_input}"}
+                {"role": "user",   "content": f"Here are the scene snapshots to polish:\n\n{structured_input}"}
             ],
             temperature=0.8,
             max_tokens=8000,
         )
         report = resp.choices[0].message.content.strip()
 
-        # 写入新文件
+        # Write a new file
         report_dir = os.environ.get('RPG_REPORTS_DIR', os.path.join(BASE_DIR, "battle_report"))
         os.makedirs(report_dir, exist_ok=True)
         filename = f"battle_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
@@ -1014,14 +1014,14 @@ def export_battle_report():
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(report)
 
-        # 生成成功后推进位置（重新生成时不推进，保留原位置便于再次重试）
+        # Advance position after successful generation (not when regenerating, to allow further retries)
         if not is_regenerate:
             new_pos = rows[-1]["id"]
             conn.execute(
                 "INSERT OR REPLACE INTO system_state (key, value) VALUES ('last_chronicle_position', ?)",
                 (str(new_pos),)
             )
-        # 无论正向还是重新生成，成功后都清除 flag
+        # Clear the flag on success for both normal generation and regeneration
         conn.execute(
             "INSERT OR REPLACE INTO system_state (key, value) VALUES ('pending_regenerate', '0')"
         )
@@ -1034,7 +1034,7 @@ def export_battle_report():
 
 
 # ---------------------------------------------------------
-# API 接口：API Key 配置（前端可热更新 .env 中的密钥）
+# API endpoints: API key configuration (frontend can update credentials in .env dynamically)
 # ---------------------------------------------------------
 
 
@@ -1043,8 +1043,8 @@ def export_battle_report():
 
 
 # =============================================================
-# 【多时间线 CRUD】：已迁移至 timeline.py
-# _tl_append_memory 通过顶部 import 引入
+# [Multi-timeline CRUD]: moved to timeline.py
+# _tl_append_memory Imported at the top
 # =============================================================
 
 @app.post("/api/timelines/{tl_id}/dynamic-options")
@@ -1055,28 +1055,28 @@ def timeline_dynamic_options(tl_id: int, req: TimelineDynamicRequest):
 
 
 # =============================================================
-# 【世界实体】：已迁移至 entity.py（通过 app.include_router(entity_router) 自动注册）
+# [World entities]: moved to entity.py (registered via app.include_router(entity_router))
 # =============================================================
 
 # =============================================================
-# 【时间线 CRUD/合并】：已迁移至 timeline.py（通过 app.include_router(timeline_router) 自动注册）
+# [Timeline CRUD/merge]: moved to timeline.py (registered via app.include_router(timeline_router))
 # =============================================================
 
 
 # =============================================================
-# 【RAG 知识库】：已迁移至 rag.py（通过 app.include_router(rag_router) 自动注册）
+# [RAG knowledge base]: moved to rag.py (registered via app.include_router(rag_router))
 # =============================================================
 
 # =============================================================
-# 【地图系统】：已迁移至 map.py（通过 app.include_router(map_router) 自动注册）
+# [Map system]: moved to map.py (registered via app.include_router(map_router))
 # =============================================================
 
 # ---------------------------------------------------------
-# 【地图-AI 联动】：节点→房间绑定查询（供前端 jumpToNode 调用）
+# [Map-AI integration]: node-to-room binding lookup (used by frontend jumpToNode)
 # ---------------------------------------------------------
 @app.get("/api/map/room-by-node/{node_id}")
 def get_room_by_node(node_id: int):
-    """查询某个剧情节点绑定的地图房间。jumpToNode 时自动调用。"""
+    """Look up the room bound to a scene node; called automatically by jumpToNode."""
     with safe_db() as conn:
         room = conn.execute(
             "SELECT id, label FROM map_rooms WHERE node_id=? LIMIT 1", (node_id,)
@@ -1087,10 +1087,10 @@ def get_room_by_node(node_id: int):
 # =============================================================
 
 # ---------------------------------------------------------
-# API 接口：投屏端同步（REST 轮询 + WebSocket 实时推送）
+# API endpoints：Spectator screen synchronization（REST polling and WebSocket live updates）
 # ---------------------------------------------------------
 
-# 【WebSocket 投屏】：连接管理 + 广播
+# 【Spectator WebSocket】：Connection management and broadcasting
 import asyncio
 
 _ws_clients: set[WebSocket] = set()
@@ -1098,24 +1098,24 @@ _ws_clients: set[WebSocket] = set()
 @app.websocket("/ws/player")
 async def ws_player_endpoint(websocket: WebSocket):
     """
-    投屏端 WebSocket 连接。
-    连接建立后立即推送一次完整状态，之后 GM 每次 push_player_state 时自动广播。
-    客户端只需监听 onmessage，不需要主动发消息。
+    Spectator WebSocket connection.
+    Send the complete state once upon connection, then broadcast whenever the GM calls push_player_state.
+    Clients only need to listen for onmessage; no messages need to be sent.
     """
     await websocket.accept()
     _ws_clients.add(websocket)
-    _log.info("投屏 WebSocket 连接建立（当前 %d 个客户端）", len(_ws_clients))
+    _log.info("Spectator WebSocket connected (%d clients)", len(_ws_clients))
     try:
-        # 连接建立后立即推送当前状态
+        # Immediately send the current state after connection
         state = _build_player_state_snapshot()
         await websocket.send_json(state)
-        # 保持连接，等待客户端断开（客户端不需要发数据，但 WebSocket 需要 recv 循环保持心跳）
+        # Keep the connection open until disconnection (clients need not send data, but WebSocket needs a receive loop)
         while True:
-            # 等待客户端消息（通常不会收到，但需要这个循环来检测断开）
+            # Wait for client messages (usually none; loop detects disconnects)
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=30)
             except asyncio.TimeoutError:
-                # 心跳：每 30 秒发一个 ping（客户端无需处理）
+                # Heartbeat: send ping every 30 seconds (no client handling needed)
                 try:
                     await websocket.send_json({"type": "ping"})
                 except Exception:
@@ -1123,14 +1123,14 @@ async def ws_player_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        _log.debug("投屏 WebSocket 异常断开: %s", e)
+        _log.debug("Spectator WebSocket disconnected unexpectedly: %s", e)
     finally:
         _ws_clients.discard(websocket)
-        _log.info("投屏 WebSocket 连接断开（剩余 %d 个客户端）", len(_ws_clients))
+        _log.info("Spectator WebSocket disconnected (%d clients remaining)", len(_ws_clients))
 
 
 def _build_player_state_snapshot() -> dict:
-    """构建投屏端需要的完整状态快照（场景+角色+BGM）。"""
+    """Build a full spectator state snapshot (scene, characters, BGM)."""
     with safe_db() as conn:
         def _get(k):
             r = conn.execute("SELECT value FROM system_state WHERE key=?", (k,)).fetchone()
@@ -1139,7 +1139,7 @@ def _build_player_state_snapshot() -> dict:
         scene_id_raw = _get("player_current_scene_id")
         scene_id = int(scene_id_raw) if scene_id_raw and scene_id_raw.isdigit() else None
 
-        # 如果有当前场景，附带场景详情
+        # Include scene details when there is a current scene
         current_scene = None
         if scene_id:
             node = conn.execute("SELECT * FROM nodes WHERE id=?", (scene_id,)).fetchone()
@@ -1166,7 +1166,7 @@ def _build_player_state_snapshot() -> dict:
 
 
 async def _broadcast_player_state():
-    """向所有已连接的投屏端 WebSocket 客户端广播当前状态。"""
+    """Broadcast current state to all connected spectator WebSocket clients."""
     if not _ws_clients:
         return
     state = _build_player_state_snapshot()
@@ -1176,32 +1176,32 @@ async def _broadcast_player_state():
             await ws.send_json(state)
         except Exception:
             dead_clients.add(ws)
-    # 清理已断开的连接
+    # Clean up disconnected clients
     _ws_clients.difference_update(dead_clients)
 
 
 # ---------------------------------------------------------
-# 场景跳转日志：记录玩家通过预设选项进入节点的行为
+# Scene navigation log: track when players enter nodes through predefined options
 # ---------------------------------------------------------
 class SceneVisitRequest(BaseModel):
     node_id:      int
     node_name:    str
-    option_text:  str = ""   # 玩家点击的选项文本，为空时表示直接跳转
+    option_text:  str = ""   # Player-selected option text, empty for direct navigation
 
 @app.post("/api/game/log-scene-visit")
 def log_scene_visit(req: SceneVisitRequest):
-    # 只有通过预设选项跳转才记录，直接跳转不写记忆流
+    # Only log predefined-option jumps; direct jumps do not update the memory stream
     if not req.option_text.strip():
         return {"status": "skipped"}
     conn = get_db_connection()
     node = conn.execute('SELECT is_draft FROM nodes WHERE id=?',(req.node_id,)).fetchone()
     if node is None or node['is_draft']:
         conn.close()
-        raise fastapi.HTTPException(409,'未确认的分支不能写入剧情历史')
-    log = f"玩家选择「{req.option_text}」→ 进入场景【{req.node_name}】"
+        raise fastapi.HTTPException(409,'Unconfirmed branches cannot be written to story history')
+    log = f'Player chose "{req.option_text}" -> entered scene [{req.node_name}]'
     append_to_memory(conn, log)
 
-    # 同步写入战报史册：抓取当前场景 content/expanded_content 作为快照
+    # Also record this in the battle chronicle: capture current scene content/expanded_content
     try:
         node = conn.execute(
             "SELECT content, expanded_content FROM nodes WHERE id=?", (req.node_id,)
@@ -1215,7 +1215,7 @@ def log_scene_visit(req: SceneVisitRequest):
         )
         conn.commit()
     except Exception as e:
-        _log.warning("写入 chronicle_log 失败: %s", e)
+        _log.warning("Failed to write chronicle_log: %s", e)
 
     conn.close()
     return {"status": "success"}
@@ -1244,10 +1244,10 @@ def rollback_checkpoint():
     with safe_db() as conn, atomic(conn):
         cp = conn.execute("SELECT * FROM game_checkpoints ORDER BY id DESC LIMIT 1").fetchone()
         if not cp:
-            return {"status":"error","message":"没有可用快照"}
+            return {"status":"error","message":"No available snapshots"}
         data = json.loads(cp["snapshot"])
         if not isinstance(data.get("system_state"),list):
-            raise fastapi.HTTPException(409,"旧格式快照不完整，请加载存档")
+            raise fastapi.HTTPException(409,"Legacy-format snapshot is incomplete; load a save")
         restore(conn,data)
         conn.execute("DELETE FROM game_checkpoints WHERE id=?",(cp["id"],))
         remaining = conn.execute("SELECT COUNT(*) FROM game_checkpoints").fetchone()[0]
@@ -1257,7 +1257,7 @@ def rollback_checkpoint():
 
 @app.get("/api/player/state")
 def get_player_state():
-    """REST 轮询接口（向后兼容，投屏端已升级为 WebSocket 则不再需要此接口）。"""
+    """REST polling endpoint (backward compatible; unnecessary after spectator clients migrate to WebSocket)."""
     with safe_db() as conn:
         def _get(k):
             r = conn.execute("SELECT value FROM system_state WHERE key=?", (k,)).fetchone()
@@ -1273,21 +1273,21 @@ def get_player_state():
 
 @app.post("/api/player/state")
 async def push_player_state(req: PlayerStateRequest):
-    """GM 推送投屏状态。写入数据库后立即通过 WebSocket 广播给所有投屏端。"""
+    """GM pushes spectator state; after writing to DB, broadcast to all spectator clients via WebSocket."""
     with safe_db() as conn:
         node=conn.execute('SELECT is_draft FROM nodes WHERE id=?',(req.current_scene_id,)).fetchone()
-        if node is None or node['is_draft']: raise fastapi.HTTPException(409,'请先确认场景结果')
+        if node is None or node['is_draft']: raise fastapi.HTTPException(409,'Confirm the scene result first')
         conn.execute("INSERT OR REPLACE INTO system_state (key,value) VALUES ('player_current_scene_id',?)", (str(req.current_scene_id),))
         conn.execute("INSERT OR REPLACE INTO system_state (key,value) VALUES ('player_scene_ai_text',?)",    (req.scene_ai_text,))
         conn.execute("INSERT OR REPLACE INTO system_state (key,value) VALUES ('player_bgm_url',?)",          (req.bgm_url,))
         conn.execute("INSERT OR REPLACE INTO system_state (key,value) VALUES ('player_bgm_name',?)",         (req.bgm_name,))
         conn.commit()
-    # WebSocket 广播（异步，不阻塞响应）
+    # WebSocket broadcast (asynchronous and nonblocking)
     await _broadcast_player_state()
     return {"status": "success"}
 
 # ---------------------------------------------------------
-# 前端静态文件服务（Vite 构建输出 → static-frontend/）
+# Frontend static file serving (Vite build output -> static-frontend/)
 # ---------------------------------------------------------
 def _device_current_scene():
     with safe_db() as conn:
@@ -1313,11 +1313,11 @@ def _serve_frontend_index():
     spa = os.path.join(_FRONTEND_DIR, "index.html")
     if os.path.exists(spa):
         return FileResponse(spa)
-    # fallback：旧版单文件 index.html 与 main.py 同级
+    # Fallback: legacy index.html alongside main.py
     legacy = os.path.join(BASE_DIR, "index.html")
     if os.path.exists(legacy):
         return FileResponse(legacy)
-    return JSONResponse({"error": "未找到前端文件，请先执行 cd frontend && npm run build"}, status_code=404)
+    return JSONResponse({"error": "Frontend file not found; run cd frontend && npm run build first"}, status_code=404)
 
 @app.get("/")
 def serve_index():
@@ -1369,28 +1369,28 @@ def encyclopedia_style():
 
 @app.get("/{filename}")
 def serve_static(filename: str):
-    # 旧版单 .html 文件兼容
+    # Legacy standalone .html compatibility
     if "/" in filename or "\\" in filename or ".." in filename:
-        raise fastapi.HTTPException(status_code=400, detail="非法文件名")
+        raise fastapi.HTTPException(status_code=400, detail="Invalid filename")
     if filename.endswith(".html"):
         path = os.path.normpath(os.path.join(BASE_DIR, filename))
         if path.startswith(os.path.normpath(BASE_DIR)) and os.path.isfile(path):
             return FileResponse(path)
-    # SPA catch-all：所有非 /api 路由返回前端 index.html
+    # SPA catch-all: serve frontend index.html for every non-/api route
     return _serve_frontend_index()
 
 # ---------------------------------------------------------
-# 程序入口
+# Program entry point
 # ---------------------------------------------------------
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.freeze_support()
     
     _log.info("=====================================================")
-    _log.info("-APERTUS MUNDUS- 正在启动...")
-    _log.info("当前工作目录: %s", BASE_DIR)
+    _log.info("-APERTUS MUNDUS- Starting up...")
+    _log.info("Current working directory: %s", BASE_DIR)
     _log.info("=====================================================")
-    _log.info("请不要关闭此窗口！关闭窗口将停止游戏引擎。")
+    _log.info("Do not close this window! Closing it will stop the game engine.")
     
     # LAN requests remain blocked until the local user enables and pairs a device.
     from server_startup import run_local_server

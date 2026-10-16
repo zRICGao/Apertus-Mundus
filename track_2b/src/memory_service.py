@@ -9,7 +9,7 @@ from database import atomic, connect_db
 from providers import generation
 from logger import get_logger
 
-memory_router = APIRouter(tags=["记忆系统"])
+memory_router = APIRouter(tags=["Memory System"])
 _db_file = ""
 _get_embeddings = None
 _maintenance_lock = threading.Lock()
@@ -53,7 +53,7 @@ def l1_get_working_context(conn, timeline_id=None):
     lines, used = [], 0
     # Keep the newest records when budget is exceeded, then restore chronological order.
     for row in rows:
-        line = f"[{row['scene_name']}] 玩家:{row['player_action']} → {row['ai_summary']} | {row['entity_updates']}"
+        line = f"[{row['scene_name']}] Player:{row['player_action']} → {row['ai_summary']} | {row['entity_updates']}"
         if used + len(line) > L1_TOKEN_BUDGET:
             continue
         lines.append(line)
@@ -77,9 +77,9 @@ def fold_memory_with_ai(current_mem):
     if len(lines) <= MEMORY_RECENT_LINES:
         return current_mem
     archived, recent = "\n".join(lines[:-MEMORY_RECENT_LINES]), "\n".join(lines[-MEMORY_RECENT_LINES:])
-    summary = generation.generate("将已确认剧情归纳为核心摘要，保留实体ID、状态变化、来源与因果关系。只返回摘要文本。",
+    summary = generation.generate("Summarize confirmed story events into a concise core summary. Preserve entity IDs, state changes, provenance, and causal relationships. Return only the summary text.",
                                   archived, max_tokens=1600)
-    return f"【剧情摘要】{summary}\n【近期记录】\n{recent}"
+    return f"[Story Summary]{summary}\n[Recent Records]\n{recent}"
 
 
 def _epoch(conn):
@@ -111,7 +111,7 @@ def _l1_evict_to_l3(conn, rows):
     ids = [r["id"] for r in rows]
     raw = "\n".join(f"[{r['scene_name']}] {r['player_action']} → {r['ai_summary']} {r['entity_updates']}" for r in rows)
     try:
-        summary = generation.generate("归纳已确认事件，保留实体ID、关键状态与因果。仅输出摘要。", raw, max_tokens=1400)
+        summary = generation.generate("Summarize confirmed events, preserving entity IDs, key states, and causal relationships. Output only the summary.", raw, max_tokens=1400)
     except Exception:
         summary = raw  # Preserve content, including when no model is configured.
     try:
@@ -126,12 +126,12 @@ def _l1_evict_to_l3(conn, rows):
         if len(current) != len(ids):
             return
         doc = conn.execute("INSERT INTO rag_documents(title,source,chunk_size,visibility,timeline_id,embedding_model) VALUES(?,?,?,?,?,?)",
-                           ("长期记忆", "memory_l3_eviction", 1, f"team:{tl}" if tl else "gm", tl,generation.settings.embedding_model if vecs else '')).lastrowid
+                           ("Long-Term Memory", "memory_l3_eviction", 1, f"team:{tl}" if tl else "gm", tl,generation.settings.embedding_model if vecs else '')).lastrowid
         conn.execute("INSERT INTO rag_chunks(doc_id,chunk_index,chunk_text,embedding) VALUES(?,?,?,?)",
                      (doc, 0, summary, json.dumps(vecs[0] if vecs and vecs[0] else [])))
         # Keep the complete source independently of the generated summary.
         conn.execute("INSERT OR REPLACE INTO wiki_sources(source_key,title,content,visibility,created_at) VALUES(?,?,?,?,datetime('now'))",
-                     (f"memory/{doc}", "长期记忆原文", raw, f"team:{tl}" if tl else "gm"))
+                     (f"memory/{doc}", "Long-Term Memory Source", raw, f"team:{tl}" if tl else "gm"))
         conn.execute(f"DELETE FROM memory_l1 WHERE id IN ({','.join('?' for _ in ids)})", ids)
         from world import refresh_wiki
         refresh_wiki(conn)
@@ -152,7 +152,7 @@ def maintain_memory(timeline_id=None):
         if row and len(row[0]) > MEMORY_FOLD_THRESHOLD:
             _async_fold_memory_task("timeline" if timeline_id else "session", row[0], timeline_id, _epoch(conn))
     except Exception as exc:
-        _log.warning("记忆维护失败，原记录保留: %s", exc)
+        _log.warning("Memory maintenance failed; original records preserved: %s", exc)
     finally:
         conn.close()
         _maintenance_lock.release()

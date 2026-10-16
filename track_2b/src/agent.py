@@ -5,10 +5,10 @@ from providers import route_action
 from database import connect_db, atomic
 from providers import generation, parse_object
 """
-APERTUS-MUNDUS 引擎 — AI Agent 模块 (agent.py)
-包含：Apertus 生成、可插拔决策、system prompt 构建、
-SSE 流式推演端点、结果后处理（NPC/stat/map/entity）。
-由 main.py 通过 app.include_router(agent_router) 挂载。
+APERTUS-MUNDUS engine — AI Agent module (agent.py)
+Includes Apertus generation, pluggable decision-making, and system prompt construction,
+SSE streaming simulation endpoints, and result post-processing (NPC/stat/map/entity).
+Mounted by main.py through app.include_router(agent_router).
 """
 
 import json
@@ -28,23 +28,23 @@ _log = get_logger("agent")
 agent_router = APIRouter(tags=["AI Agent"])
 
 ##########################################################
-# 将此请求模型添加到 agent.py 顶部
+# Add this request model at the top of agent.py
 class NPCChatRequest(BaseModel):
     npc_name: str = ""
     entity_uid: str | None = None
     timeline_id: int | None = None
     player_message: str
-    chat_history: str = "" # 前端传来的近期聊天记录
+    chat_history: str = "" # Recent chat history received from the frontend
 ###########################################################
 
 # ---------------------------------------------------------
-# state_desc JSON 解析器（兼容旧版纯文本）
+# state_desc JSON parser (compatible with legacy plain text)
 # ---------------------------------------------------------
 def _parse_state_desc(raw: str) -> dict:
     """
-    解析 world_entities.state_desc 字段。
-    新版：JSON 格式 {"desc":"...", "emotion":{...}, "breakpoint":{...}, "memory":[...]}
-    旧版：纯文本 → 自动升级为 {"desc": "原文本", "emotion": {...}, "memory": []}
+    Parse the world_entities.state_desc field.
+    New format: JSON  {"desc":"...", "emotion":{...}, "breakpoint":{...}, "memory":[...]}
+    Legacy format: plain text -> automatically upgraded to {"desc": "Original text", "emotion": {...}, "memory": []}
     """
     if not raw:
         return {"desc": "", "emotion": {"trust": 0, "fear": 0, "irritation": 0}, "memory": []}
@@ -58,32 +58,32 @@ def _parse_state_desc(raw: str) -> dict:
             return sd
         except json.JSONDecodeError:
             pass
-    # 旧版纯文本兼容
+    # Legacy plain-text compatibility
     return {"desc": raw, "emotion": {"trust": 0, "fear": 0, "irritation": 0}, "memory": []}
 
 
 def _serialize_state_desc(sd: dict) -> str:
-    """将 state_desc dict 序列化为 JSON 字符串。"""
+    """Serialize the state_desc dictionary as a JSON string."""
     return json.dumps(sd, ensure_ascii=False)
 
 
 def _format_emotion_label(value: int) -> str:
-    """将情绪数值转为人类可读标签。"""
-    if value >= 60: return "极高"
-    if value >= 30: return "高"
-    if value >= 10: return "中"
-    if value >= -10: return "平"
-    if value >= -30: return "低"
-    return "极低"
+    """Convert numerical emotion values into readable labels."""
+    if value >= 60: return "Very high"
+    if value >= 30: return "High"
+    if value >= 10: return "Medium"
+    if value >= -10: return "Neutral"
+    if value >= -30: return "Low"
+    return "Very low"
 
 # ---------------------------------------------------------
-# 依赖注入（由 main.py 启动时设置）
+# Dependency injection (configured by main.py at startup)
 # ---------------------------------------------------------
 _db_file: str = ""
 _generation_client = None   # OpenAI-compatible (Apertus)
 _persona_config: dict = {}
 
-# 外部函数引用（由 main.py 注入，避免循环导入）
+# External function references (injected by main.py to avoid circular imports)
 _get_map_context = None
 _auto_place_room = None
 _process_map_actions = None
@@ -96,16 +96,16 @@ _append_to_memory = None
 _tl_append_memory = None
 _get_world_entities_text = None
 _rag_retrieve = None
-_get_embeddings = None          # rag.get_embeddings（NPC 记忆→L3 向量化用）
+_get_embeddings = None          # rag.get_embeddings (used to vectorize NPC memories into L3)
 _refresh_vector_cache = None    # rag.refresh_vector_cache
 
-# 当前激活的模型（服务器级默认值，可被请求级参数覆盖）
+# Currently active model (server default, overridable per request)
 AVAILABLE_MODELS = {"apertus-70b": {"label": "Apertus 70B", "model_id": generation.settings.model}}
 _active_model = "apertus-70b"
 
 def _resolve_model(request_model=None):
     if request_model and request_model != "apertus-70b":
-        raise ValueError("生成模型只支持 apertus-70b；小模型在决策层配置")
+        raise ValueError("Generation supports only apertus-70b; smaller models are configured in the decision layer")
     return "apertus-70b"
 
 
@@ -113,7 +113,7 @@ def configure_agent(
     db_file: str,
     generation_client,
     persona_config: dict = None,
-    # 外部函数注入
+    # External function injection
     fn_get_map_context=None,
     fn_auto_place_room=None,
     fn_process_map_actions=None,
@@ -129,7 +129,7 @@ def configure_agent(
     fn_get_embeddings=None,
     fn_refresh_vector_cache=None,
 ):
-    """由 main.py 启动时调用，注入所有依赖。"""
+    """Called by main.py at startup to inject all dependencies."""
     global _db_file, _generation_client, _persona_config
     global _get_map_context, _auto_place_room, _process_map_actions
     global _get_current_room_id, _ai_extract_and_upsert_entities
@@ -141,7 +141,7 @@ def configure_agent(
     _generation_client = generation_client
     _persona_config = persona_config or {}
 
-    # 注入外部函数
+    # Inject external functions
     _get_map_context = fn_get_map_context
     _auto_place_room = fn_auto_place_room
     _process_map_actions = fn_process_map_actions
@@ -175,7 +175,7 @@ def safe_db():
 
 
 # ---------------------------------------------------------
-# 模型切换 API
+# Model switching API
 # ---------------------------------------------------------
 class ModelSwitchRequest(BaseModel):
     model: str  # apertus-70b
@@ -194,7 +194,7 @@ def switch_model(req: ModelSwitchRequest):
 
 
 # ---------------------------------------------------------
-# 统一 AI 调用接口（Apertus 70B）
+# Unified AI invocation interface (Apertus 70B)
 # ---------------------------------------------------------
 def _call_ai(system_prompt, user_prompt, temperature=0.8, max_tokens=2000, json_mode=True, model_override=None, response_format=None):
     _resolve_model(model_override)
@@ -204,7 +204,7 @@ def _call_ai(system_prompt, user_prompt, temperature=0.8, max_tokens=2000, json_
 
 
 # ---------------------------------------------------------
-# SSE 流式调用（用于前端打字机效果）
+# SSE streaming call (for the frontend typewriter effect)
 # ---------------------------------------------------------
 def _stream_ai_sse(system_prompt, user_prompt, temperature=0.8, max_tokens=2000, model_override=None, json_mode=False, response_format=None):
     _resolve_model(model_override)
@@ -232,12 +232,12 @@ def _stream_ai_sse(system_prompt, user_prompt, temperature=0.8, max_tokens=2000,
 
 
 # ---------------------------------------------------------
-# 上下文构建器
+# Context builder
 # ---------------------------------------------------------
 def build_system_context(conn, *search_texts, timeline_id=None, sources=None):
     """
-    打包提取全知上下文（世界观、角色、百科、记忆、实体、RAG、地图）。
-    返回 8 元组。
+    Gather omniscient context (worldview, characters, encyclopedia, memory, entities, RAG and map).
+    Return an 8-tuple.
     """
     selected=set(sources) if sources is not None else {'lore','history','entities','map'}
     wv_row = conn.execute("SELECT value FROM system_state WHERE key = 'worldview'").fetchone()
@@ -255,29 +255,29 @@ def build_system_context(conn, *search_texts, timeline_id=None, sources=None):
         return re.sub(r'\([^)]*\)', '', p).strip()
 
     party_status = "\n".join([
-        f"- {c['name']} (HP:{c['hp']}, SAN:{c['san']}) | 物品: {c['inventory'] or '无'}"
-        + (f" | 性格: {_strip_mbti_desc(c['personality'])}" if c['personality'] else "")
+        f"- {c['name']} (HP:{c['hp']}, SAN:{c['san']}) | Items: {c['inventory'] or 'None'}"
+        + (f" | Personality: {_strip_mbti_desc(c['personality'])}" if c['personality'] else "")
         for c in active_chars
     ])
     if benched_chars:
-        party_status += "\n【暂离角色（不在当前场景，不可直接互动）】\n" + "\n".join([
-            f"- {c['name']}（暂离）" for c in benched_chars
+        party_status += "\n[Inactive characters (not in the current scene; cannot interact directly)]\n" + "\n".join([
+            f"- {c['name']}(away)" for c in benched_chars
         ])
     if not party_status.strip():
-        party_status = "当前场景无活跃角色。"
+        party_status = "There are no active characters in the current scene."
 
     if timeline_id is not None:
         tl = conn.execute("SELECT * FROM timelines WHERE id=?", (timeline_id,)).fetchone()
         if tl is None:
-            raise ValueError("队伍不存在")
+            raise ValueError("Team does not exist")
         session_memory = tl["memory"] or ""
         ids = {int(x) for x in tl["char_ids"].split(",") if x.strip().isdigit()}
-        party_status = "\n".join(f"- [entity_uid={c['entity_uid']}] {c['name']} HP:{c['hp']} SAN:{c['san']} 物品:{c['inventory']}"
+        party_status = "\n".join(f"- [entity_uid={c['entity_uid']}] {c['name']} HP:{c['hp']} SAN:{c['san']} Items:{c['inventory']}"
             for c in conn.execute("SELECT * FROM characters") if c["id"] in ids)
     else:
         assigned={int(x) for row in conn.execute("SELECT char_ids FROM timelines WHERE status='active'")
                   for x in row[0].split(',') if x.strip().isdigit()}
-        party_status = "\n".join(f"- [entity_uid={c['entity_uid']}] {c['name']} HP:{c['hp']} SAN:{c['san']} 物品:{c['inventory']}"
+        party_status = "\n".join(f"- [entity_uid={c['entity_uid']}] {c['name']} HP:{c['hp']} SAN:{c['san']} Items:{c['inventory']}"
             for c in conn.execute("SELECT * FROM characters") if c["status"] == "active" and (c['role']!='PC' or c['id'] not in assigned))
     combined_text = " ".join(search_texts).lower()
     relevant_lore = ""
@@ -297,178 +297,178 @@ def build_system_context(conn, *search_texts, timeline_id=None, sources=None):
     bundle = retrieve(conn, " ".join(search_texts), timeline_id=timeline_id, sources=selected)
     rag_context = bundle.text
 
-    # 地图空间感知
+    # Spatial map awareness
     map_context = ""
     try:
         if _get_map_context:
             map_context = _get_map_context(conn, current_room_id,query=' '.join(search_texts))
     except Exception as e:
-        _log.debug("地图上下文构建失败（已降级）: %s", e)
+        _log.debug("Failed to build map context (degraded gracefully): %s", e)
 
-    relevant_lore += "\n【已登记状态定义】\n" + encode(known_definitions(conn))
+    relevant_lore += "\n[Registered state definitions]\n" + encode(known_definitions(conn))
     if sources is not None:
         if "history" not in sources:
             session_memory = ""
             l1_context = ""
         # The current place/adjacency is a mandatory safety anchor even when map RAG is skipped.
         if "lore" not in sources:
-            relevant_lore = "【已登记状态定义】" + encode(known_definitions(conn))
+            relevant_lore = "[Registered state definitions]" + encode(known_definitions(conn))
     return worldview, party_status, relevant_lore, session_memory, l1_context, world_entities_text, rag_context, map_context
 
 
 # ---------------------------------------------------------
-# Prompt 模板
+# Prompt templates
 # ---------------------------------------------------------
 # ─────────────────────────────────────────────────────────
-# JSON Schema（优化版：60 字短叙事 + null 字段省略 + 对话精简）
+# JSON Schema (optimized for short 60-character narrative, omission of null fields, and concise dialogue)
 #
-# 设计原则：
-#   1. 60 字短叙事：node_content 限制为约 60 字的核心场景骨架，
-#      保留因果链和细节锚点，玩家选择后由 expand-branch 润色为完整叙事。
-#   2. null 字段省略：无变化的字段直接不输出。
-#   3. 对话模式精简：砍掉 stat_changes / map_actions / npc 字段。
+# Design principles:
+#   1. Short narrative: limit node_content to a core outline of roughly 60 characters,
+#      preserving causality and details; expand-branch turns the selected option into full prose.
+#   2. Omit null fields: do not output fields with no changes.
+#   3. Simplify dialogue mode: remove stat_changes / map_actions / npc fields.
 # ─────────────────────────────────────────────────────────
 
 _DYNAMIC_OPTIONS_JSON_SCHEMA = """{
-  "thought_process": "1. ... 2. ... 3. ... 4. ... 5. ...（每步限一句话，总共不超过100字）",
+  "thought_process": "1. ... 2. ... 3. ... 4. ... 5. ...(one sentence per step; no more than 100 characters total)",
   "branches": [
     {
-      "text": "选项简述（20字内）",
-      "node_name": "新场景标题（15字内）",
-      "node_content": "场景骨架（约60字，包含关键动作、感官反馈、情绪反应等核心锚点，仅当必要时才补充环境描写）",
-      "stat_changes": [{"entity_uid": "上下文中的ID", "hp_delta": 0, "san_delta": 0, "inventory_append": "", "inventory_remove": "", "reason": "原因(10字内)"}],
-      "entity_updates": "该分支导致的实体状态变化",
-      "emotion_deltas": [{"entity_uid": "上下文中的ID", "trust": 0, "fear": 0, "irritation": 0}],
-      "npc_memories": [{"entity_uid": "上下文中的ID", "memory": "从该NPC视角记住的一句话（20字内）"}],
+      "text": "Brief option description (within 20 characters)",
+      "node_name": "New scene title (within 15 characters)",
+      "node_content": "Scene outline (about 60 characters with key actions, sensory cues, emotional reactions and essential anchors; add setting details only if necessary)",
+      "stat_changes": [{"entity_uid": "ID from context", "hp_delta": 0, "san_delta": 0, "inventory_append": "", "inventory_remove": "", "reason": "Reason (within 10 characters)"}],
+      "entity_updates": "Entity-state changes caused by this branch",
+      "emotion_deltas": [{"entity_uid": "ID from context", "trust": 0, "fear": 0, "irritation": 0}],
+      "npc_memories": [{"entity_uid": "ID from context", "memory": "One sentence remembered from this NPC's perspective (within 20 characters)"}],
       "map_actions": {
-        "movement": {"target_room_id": "已有相邻地点的整数ID，或用target_room_ref引用本分支新区域", "reason": "移动原因"},
-        "new_room": {"ref":"new_room", "label": "独立新区域名称", "description": "区域描述", "floor":"整数；默认当前楼层", "edge_type":"normal/stairs/elevator/portal", "aliases":[]},
-        "reveal_room": {"room_id":"已有但本次才发现的地点ID"},
-        "reveal_edge": {"edge_id":"已有但本次才发现的通道ID"},
-        "unlock_edge": {"from_label": "房间A名称", "to_label": "房间B名称", "key_used": "使用的钥匙名"}
+        "movement": {"target_room_id": "Integer ID of an existing adjacent location, or target_room_ref referring to this branch's new area", "reason": "Reason for movement"},
+        "new_room": {"ref":"new_room", "label": "Distinct new area name", "description": "Area description", "floor":"Integer; defaults to current floor", "edge_type":"normal/stairs/elevator/portal", "aliases":[]},
+        "reveal_room": {"room_id":"ID of an existing location newly discovered in this branch"},
+        "reveal_edge": {"edge_id":"Existing passage ID discovered for the first time in this branch"},
+        "unlock_edge": {"from_label": "Room AName", "to_label": "Room BName", "key_used": "Name of the key used"}
       },
-      "npc": {"ref": "new_npc", "name": "姓名(10字内)", "role": "NPC", "hp": 50, "san": 60, "inventory": "持有物(30字内)", "backstory": "背景(50字内)"},
-      "likelihood": "极高/高/中等/低/极低（一句话理由，基于角色状态和世界观规则）"
+      "npc": {"ref": "new_npc", "name": "Name (within 10 characters)", "role": "NPC", "hp": 50, "san": 60, "inventory": "Carried items (within 30 characters)", "backstory": "Backstory (within 50 characters)"},
+      "likelihood": "Very high/high/medium/low/very low (one-sentence reason based on character state and worldview rules)"
     }
   ]
 }
-【极重要·字段省略规则】：
-- 若某分支没有 stat_changes，则省略整个 key
-- 若某分支没有 entity_updates / emotion_deltas / npc_memories，则省略
-- entity_updates 必须是文本字符串；无变化时省略或使用空字符串，不要使用对象、数组或 null。结构化实体变化使用 entity_changes / state_changes。
-- 若无空间变化，省略 map_actions；若无新 NPC，省略 npc
-- 剧情场景不等于新的物理地点。换称呼或同一地点内的环境描写不得新建房间。优先使用已登记地点ID。
-- new_room 只表示发现区域。实际进入必须同时提供 movement:{target_room_ref:"new_room"}；仅发现入口时不移动。
-- floor省略时继承当前楼层；跨楼层必须明确stairs/elevator/portal。不同楼层允许同名，名称有歧义时使用ID。
-- unlock_edge负责扣除使用的钥匙，不得同时在stat_changes.inventory_remove中重复扣除。
-- likelihood 字段每个分支必须输出，不可省略
-- 只保留有实际内容的字段"""
+[Critical field omission rules]:
+- If a branch has no stat_changes, omit the key entirely
+- Omit entity_updates / emotion_deltas / npc_memories when absent from a branch
+- entity_updates must be a text string; omit if unchanged or use an empty string, never an object, array or null. Use entity_changes / state_changes for structured entity changes.
+- Omit map_actions if there is no spatial change, and omit npc if there is no new NPC
+- A narrative scene is not a new physical location. Alternate names or environmental descriptions within one place do not justify a new room; use registered location IDs.
+- new_room only denotes discovery of an area. Actual entry also requires movement:{target_room_ref:"new_room"}; discovering an entrance alone does not move the team.
+- Omitted floor inherits the current floor; crossing floors requires stairs/elevator/portal. Different floors may share names; use IDs for ambiguous names.
+- unlock_edge consumes the key used; do not also remove it in stat_changes.inventory_remove.
+- Every branch must include the likelihood field
+- Include only fields with actual content"""
 
-# 【对话模式】JSON Schema — 砍掉 stat_changes / map_actions / npc，强化情绪和记忆
+# [Dialogue mode] JSON Schema — omit stat_changes / map_actions / npc and emphasize emotions and memories
 _DIALOGUE_JSON_SCHEMA = """{
-  "thought_process": "1. 社交意图识别：... 2. NPC性格反应：... 3. 信息博弈：... 4. 关系位移：...（每步限一句话）",
+  "thought_process": "1. Social intent analysis: ... 2. NPC personality response: ... 3. Information exchange: ... 4. Relationship shift: ...(one sentence per step)",
   "branches": [
     {
-      "text": "对话走向简述（20字内）",
-      "node_name": "场景标题（15字内）",
-      "node_content": "对话场景骨架（约60字，含NPC关键台词用「」包裹、表情/肢体语言）",
-      "san_delta": {"entity_uid": "上下文中的ID", "delta": -5, "reason": "心理冲击原因"},
-      "entity_updates": "NPC态度变化描述",
-      "emotion_deltas": [{"entity_uid": "上下文中的ID", "trust": 10, "fear": 0, "irritation": -5}],
-      "npc_memories": [{"entity_uid": "上下文中的ID", "memory": "从该NPC视角记住的一句话"}],
-      "new_entities": [{"ref": "new_1", "name": "未登记的交谈对象称呼", "entity_type": "npc", "description": "已知身份描述"}],
-      "likelihood": "极高/高/中等/低/极低（一句话理由，基于NPC性格和玩家行为）"
+      "text": "Brief dialogue outcome (within 20 characters)",
+      "node_name": "Scene title (within 15 characters)",
+      "node_content": "Dialogue scene outline (about 60 characters; enclose key NPC lines in quotation marks and describe expressions and gestures)",
+      "san_delta": {"entity_uid": "ID from context", "delta": -5, "reason": "Reason for psychological shock"},
+      "entity_updates": "NPC attitude changeDescription",
+      "emotion_deltas": [{"entity_uid": "ID from context", "trust": 10, "fear": 0, "irritation": -5}],
+      "npc_memories": [{"entity_uid": "ID from context", "memory": "One sentence recalled from the NPC's perspective"}],
+      "new_entities": [{"ref": "new_1", "name": "Name used for an unregistered conversation partner", "entity_type": "npc", "description": "Known identityDescription"}],
+      "likelihood": "Very high/high/medium/low/very low (one-sentence reason based on NPC personality and player behavior)"
     }
   ]
 }
-【极重要·字段省略规则】：
-- 对话模式下不允许出现 stat_changes / map_actions / npc 字段；未登记的交谈对象可用 new_entities 声明，已登记则省略
-- 若无 SAN 变化，省略 san_delta；其余同上
-- entity_updates 必须是文本字符串；无变化时省略或使用空字符串，不要使用对象、数组或 null。结构化实体变化使用 entity_changes / state_changes。
-- likelihood 字段每个分支必须输出，不可省略
-- 只保留有实际内容的字段"""
+[Critical field omission rules]:
+- Dialogue mode must not include stat_changes / map_actions / npc fields; declare unregistered conversation partners with new_entities and omit them if already registered
+- Omit san_delta if SAN is unchanged; otherwise follow the rules above
+- entity_updates must be a text string; omit if unchanged or use an empty string, never an object, array or null. Use entity_changes / state_changes for structured entity changes.
+- Every branch must include the likelihood field
+- Include only fields with actual content"""
 
-# 【行动模式】JSON Schema — 与混合模式相同
+# [Action mode] JSON Schema — same as mixed mode
 _ACTION_JSON_SCHEMA = _DYNAMIC_OPTIONS_JSON_SCHEMA
 
 # ---------------------------------------------------------
-# 三套推演指令模板
+# Three simulation instruction templates
 # ---------------------------------------------------------
 _INSTRUCTION_DIALOGUE = """
-=== 推演指令（社交对话模式）===
-这是一次社交互动。玩家正在通过言语与场景中的角色交涉。
+=== Simulation instructions (social dialogue mode)===
+This is a social interaction. The player is negotiating through words with a character in the scene.
 
-【核心约束】
-- 不得产生任何物理伤害（hp_delta 必须为 0）
-- 不得改变物品持有状态（inventory_append / inventory_remove 必须为空）
-- 不得触发空间移动（map_actions 必须为 null）
-- SAN 值可以因心理冲击而变化（例如得知可怕真相）
-- entity_updates 应聚焦于 NPC 态度、情绪、信任度的变化
+【Core constraints】
+- No physical damage may occur (hp_delta must be 0)
+- Item ownership must not change (inventory_append / inventory_remove must be empty)
+- No spatial movement may occur (map_actions must be null)
+- SAN may change due to psychological shock (e.g., learning a terrifying truth)
+- entity_updates should focus on NPC attitude, emotions, and changes in trust
 
-【情绪状态机】
-有明确的情绪变化时输出 emotion_deltas 数组，记录该分支对在场 NPC 情绪的影响；无变化可省略：
-- trust（信任）：正值=更信任玩家，负值=更不信任
-- fear（恐惧）：正值=更害怕，负值=放松
-- irritation（烦躁）：正值=更恼火，负值=缓和
-注意：delta 分四档——日常闲聊(1-5)、明显影响(6-15)、重大转折(16-20)、超过20仅限救命/深层创伤等极端事件。系统会对小 delta 施加阻尼，对 delta≥20 的重大事件允许穿透阻尼直接入账。
+[Emotion state machine]
+When emotions clearly change, output emotion_deltas describing their effect on present NPCs; omit if nothing changes:
+- trust: positive = more trust in the player; negative = less trust
+- fear(fear): positive = more afraid; negative = more relaxed
+- irritation(irritation): positive = more irritated; negative = calmer
+Note: four delta levels: casual conversation (1-5), noticeable impact (6-15), major turning point (16-20), and over 20 only for extreme events such as lifesaving acts or deep trauma. Small deltas are damped; major events with delta >=20 can bypass damping.
 
-【NPC 记忆】
-需要持续记忆的互动可输出 npc_memories 数组，用一句话从 NPC 的第一人称视角记录；背景人物无需强行记录：
-- 只记录该 NPC 亲眼所见/亲耳所闻的事，不能记录 NPC 不可能知道的信息
-- 20字以内，例如："有人来打听地下室的事"、"那个法师送了我一块怀表"
+【NPC Memory】
+For interactions worth remembering, output npc_memories with one sentence in the NPC's first-person perspective; background characters need not record memories:
+- Record only what the NPC personally saw or heard, never information they could not know
+- Within 20 characters, for example: "Someone asked about the basement"、"That mage gave me a pocket watch"
 
-【thought_process 必须包含以下 4 步推理】
-1. 社交意图识别：玩家这句话的真实目的是什么？（威吓/套话/说服/欺骗/安慰）
-2. NPC 性格反应：根据该 NPC 的性格特质，ta 会如何接招？（抗拒/动摇/配合/反击）
-3. 信息博弈：这次对话是否会泄露/获取关键信息？哪些信息是 NPC 会守住的底线？
-4. 关系位移：对话结束后，NPC 对玩家的态度会发生什么变化？
+【thought_process must contain these four reasoning steps】
+1. Social intent: what does the player really intend? (intimidation/probing/persuasion/deception/comfort)
+2. NPC personality reaction: How will the NPC respond based on personality? (resist / waver / cooperate / retaliate)
+3. Information exchange: Will this conversation reveal or obtain important information? What limits will the NPC maintain?
+4. Relationship shift: how will the NPC's attitude toward the player change after the dialogue?
 
-推演 2-4 个对话走向分支。每个分支的 node_content（约60字）必须包含 NPC 的关键台词（用「」包裹）和核心肢体语言。
-【极其重要】每个分支的 entity_updates / emotion_deltas / npc_memories 必须写在该分支对象内部。不同对话走向可能导致不同的情绪后果。
-【对话模式禁止字段】不要输出 stat_changes / map_actions / npc 字段。SAN 变化使用 san_delta 字段。
-【概率判定】每个分支必须输出 likelihood 字段，格式为"极高/高/中等/低/极低（理由）"。理由基于 NPC 性格倾向、玩家社交行为的说服力和当前情境压力，不超过15字。不要输出数字概率。"""
+Simulate 2-4 dialogue branches. Each branch's node_content (around 60 characters) must include key NPC dialogue (in quotation marks) and essential body language.
+[Extremely important] Each branch must contain its own entity_updates / emotion_deltas / npc_memories. Different dialogue paths may have different emotional outcomes.
+【Forbidden dialogue-mode fields】Do not output stat_changes / map_actions / npc fields. Use san_delta for SAN changes.
+[Likelihood assessment] Each branch must output likelihood as "very high/high/medium/low/very low (reason)". Base the reason on NPC personality, the persuasiveness of the player's social action and situational pressure, within 15 characters. Do not output numeric probabilities."""
 
 _INSTRUCTION_ACTION = """
-=== 推演指令（物理行动模式）===
-这是一次物理行动。玩家正在执行涉及身体、环境或物品的操作。
+=== Simulation instructions (physical action mode) ===
+This is a physical action. The player is acting on the body, environment, or items.
 
-【核心约束】
-- HP/SAN 变化、物品得失、空间移动均可正常发生
-- NPC 的言语反应应简短，重点描述其物理行为（拔剑、逃跑、倒地）
-- 移动到已有区域须引用【地图空间感知】的相邻地点ID；进入本分支新区域时使用 movement.target_room_ref 引用 new_room.ref
-- 仅发现新区域填 new_room，实际进入须另填 movement；揭示已有地点/通道使用 reveal_room/reveal_edge，解锁填 unlock_edge
+【Core constraints】
+- HP/SAN changes, item gains/losses, and spatial movement are allowed
+- NPC dialogue should be brief, focusing on physical actions (drawing swords, fleeing, falling)
+- To move to an existing area, reference an adjacent location ID in [Spatial map awareness]; entering this branch's new area requires movement.target_room_ref referring to new_room.ref
+- For discovery only, use new_room; for actual entry also provide movement. Reveal existing locations/passages with reveal_room/reveal_edge and unlock using unlock_edge
 
-【thought_process 必须包含以下 5 步推理】
-1. 可行性检查：角色当前 HP/SAN/物品是否支持此行动？
-2. 世界观合规：此行动是否违反物理法则或世界规则？
-3. 空间合规：行动是否发生在当前位置可到达的范围内？
-4. 物理后果：环境和在场角色会受到什么直接物理影响？
-5. 连锁反应：此行动会触发哪些后续事件？
+【thought_process must include these five reasoning steps】
+1. Feasibility: do the character's current HP/SAN/items support this action?
+2. Worldview compliance: does this action violate physical laws or world rules?
+3. Spatial compliance: is the action reachable from the current position?
+4. Physical consequences: what direct physical effects will the environment and present characters experience?
+5. Chain reactions: what subsequent events will this action trigger?
 
-推演 2-4 个结果分支。每个分支的 node_content（约60字）必须包含关键动作描写、伤害程度和环境变化等核心锚点。
-【极其重要】每个分支的 stat_changes / entity_updates / map_actions / npc 必须写在该分支对象内部。不同结果可能导致完全不同的HP变化和空间移动。
-【字段省略】没有变化的字段直接省略，不要写空数组或 null。
-【概率判定】每个分支必须输出 likelihood 字段，格式为"极高/高/中等/低/极低（理由）"。理由基于角色属性、装备支撑度和物理可行性，不超过15字。不要输出数字概率。"""
+Simulate 2-4 outcome branches. Each branch's node_content (about 60 characters) must include key actions, damage severity, environmental changes, and other essential anchors.
+[Extremely important] Each branch must contain its own stat_changes / entity_updates / map_actions / npc. Different outcomes can cause entirely different HP changes and spatial movements.
+【Field omission】Omit unchanged fields rather than outputting empty arrays or null.
+【Likelihood assessment】Each branch must output likelihood as "very high/high/medium/low/very low (reason)". Base the reason on character attributes, equipment, and physical feasibility, within 15 characters. Do not output numeric probabilities."""
 
 _INSTRUCTION_MIXED = """
-=== 推演指令 ===
-玩家做出了意外举动。你必须先在 thought_process 字段中进行严格的逻辑自检（内省），然后再输出推演结果。
+=== Simulation instructions ===
+The player has taken an unexpected action. First conduct rigorous logical self-checks in thought_process, then output the simulation results.
 
-【thought_process 必须包含以下 5 步推理（每步一句话）】
-1. 角色状态检查：当前行动者的 HP/SAN/负面状态是否限制了此行动？
-2. 世界观合规：此行动是否违反世界观中的物理法则、禁忌或社会规则？
-3. 空间合规：若地图已启用，行动是否发生在当前位置可到达的范围内？
-4. NPC 动机分析：场景中的 NPC 会如何反应？他们的动机是什么？
-5. 后果推演：综合以上分析，合理的结局应当是什么？
+【thought_process must include these five reasoning steps（one sentence per step）】
+1. Character state: do the actor's HP/SAN/negative states limit the action?
+2. Worldview compliance: does the action violate the worldview's physics, taboos or social rules?
+3. Spatial compliance: if the map is enabled, is the action reachable from the current location?
+4. NPC motivation: how will NPCs in the scene react and what are their motivations?
+5. Outcome simulation: based on the analysis, what is a plausible outcome?
 
-完成以上内省后，推演 2-4 个合理分支。每个分支的 node_content（约60字）应包含核心因果描写。
+After these self-checks, simulate 2-4 plausible branches. Each branch's node_content (about 60 characters) should present core causal details.
 
-【极其重要】每个分支的副作用字段必须写在该分支对象内部，而不是全局字段。
-不同分支可能导致完全不同的后果（例如分支A扣HP，分支B不扣），系统会在玩家选择后只执行该分支的副作用。
-移动到已有区域须引用【地图空间感知】的相邻地点ID；进入本分支新区域时使用 movement.target_room_ref 引用 new_room.ref。
-仅发现区域不等于进入。已有但未发现的地点和通道使用 reveal_room/reveal_edge；解锁使用 unlock_edge。
-【字段省略】没有变化的字段直接省略，不要写空数组或 null。
-【概率判定】每个分支必须输出 likelihood 字段，格式为"极高/高/中等/低/极低（理由）"。综合 thought_process 的五步推理评估，理由不超过15字。不要输出数字概率。"""
+【Extremely important】Each branch's side-effect fields must be inside that branch object, not global fields.
+Different branches may yield completely different results (e.g. losing HP in branch A but not B). The system applies only the selected branch's effects.
+Moving to an existing area requires an adjacent location ID from [Spatial map awareness]; to enter a new area in this branch, use movement.target_room_ref referring to new_room.ref.
+Discovery is not entry. Use reveal_room/reveal_edge for previously undiscovered registered locations and passages, and unlock_edge for unlocking.
+【Field omission】Omit unchanged fields rather than outputting empty arrays or null.
+【Likelihood assessment】Each branch must output likelihood as "very high/high/medium/low/very low (reason)". Assess it using the five reasoning steps in thought_process, with a reason under 15 characters. Do not give numeric probabilities."""
 
 
 def _build_dynamic_system_prompt(worldview, party_status, relevant_lore,
@@ -479,139 +479,139 @@ def _build_dynamic_system_prompt(worldview, party_status, relevant_lore,
                                   gm_correction="",
                                   mood="",
                                   force_thrust=False):
-    """构建推演用的 system prompt。根据 action_type 切换上下文策略和指令集。"""
-    prefix = f"你是跑团GM，正在处理同一世界的分队「{tl_label}」中的剧情推演。" if is_timeline else "你是一个跑团GM。"
+    """Build the simulation system prompt. Switch context strategy and instructions according to action_type."""
+    prefix = f'You are the tabletop RPG GM, simulating a team in the same world: "{tl_label}".' if is_timeline else "You are a tabletop RPG GM."
     persona = ""
     if _build_persona_instruction:
         persona = _build_persona_instruction()
 
-    # GM 纠正指令块（非空时注入到 prompt 末尾）
+    # GM correction block (appended to the prompt when nonempty)
     gm_correction_block = ""
     if gm_correction and gm_correction.strip():
         gm_correction_block = f"""
 
-=== 【GM 纠正指令——最高优先级，必须遵守】===
-GM 对上一次推演结果不满意，明确要求你在本次推演中：
+=== 【GM correction instruction — highest priority, must be followed】===
+The GM was dissatisfied with the previous simulation and explicitly requires the following this time:
 {gm_correction.strip()}
-你必须严格执行此纠正指令。如果 GM 的纠正与世界观冲突，以 GM 指令为准。"""
+You must follow the correction exactly. If it conflicts with the worldview, the GM's instruction takes precedence."""
 
-    # 氛围预设块
+    # Mood preset block
     mood_block = ""
     if mood and mood.strip():
         mood_block = f"""
 
-=== 【氛围指令】===
-本次推演的叙事基调为「{mood.strip()}」，分支描写、NPC语气和环境细节都应契合此氛围。"""
+=== 【Mood instructions】===
+The narrative mood of this simulation is "{mood.strip()}"; branch descriptions, NPC tone, and environmental details must match this mood."""
 
-    # 叙事推力块（一次性）
+    # Narrative momentum block (one-time)
     thrust_block = ""
     if force_thrust:
         thrust_block = """
 
-=== 【系统指令：推动剧情】===
-GM 认为当前剧情节奏需要加速。在本次推演中：
-- 至少一个分支必须包含 NPC 主动抛出新线索、突发事件或尖锐质问
-- 至少一个分支保持当前节奏供玩家选择"""
+=== 【System instruction: advance the story】===
+The GM wants faster pacing. In this simulation:
+- At least one branch must include an NPC proactively introducing a new clue, sudden event, or pointed question
+- At least one branch must retain the existing pace as an option for the player"""
 
-    # ── 根据 action_type 选择上下文策略 ──
+    # ── Choose the context strategy based on action_type ──
     if action_type == "dialogue":
-        # 对话模式：砍地图、强化 persona
+        # Dialogue mode: omit map context and emphasize persona
         context_block = f"""{prefix}
-你必须严格遵守以下信息层级，绝不能编造或忽视任何已设定的内容。
+Strictly respect the following information hierarchy; never invent or ignore established facts.
 
-=== 第一优先级：硬性约束（违反即为错误）===
-【全局世界观——所有推演必须在此框架内，不得自行发明世界观外的设定】
+=== First priority: hard constraints (violations are errors)===
+[Global worldview — all simulations must remain within this framework and never invent settings outside it]
 {worldview}
 
-【角色当前状态——推演时必须参考，尤其关注 SAN 值和性格特征】
+[Current character states — must be considered, especially SAN and personality traits]
 {party_status}
 
-{f"【已知世界实体（L2 实体档案）——必须遵守其当前状态，尤其注意 NPC 的性格和态度】{chr(10)}{world_entities_text}" if world_entities_text else ""}
+{f"[Known world entities (L2 entity profiles) — follow their current states, especially NPC personality and attitude]{chr(10)}{world_entities_text}" if world_entities_text else ""}
 
-=== 第二优先级：上下文参考 ===
-{f"【L1 近期推演快照】{chr(10)}{l1_context}" if l1_context else ""}
+=== Second priority: contextual references ===
+{f"【L1 recent simulation snapshots】{chr(10)}{l1_context}" if l1_context else ""}
 
-【剧情记忆流】
+[Story memory stream]
 {session_memory}
 
-【相关设定词条】
+【Relevant lore entries】
 {relevant_lore}
-{f"【知识库检索结果（L3 长期记忆 + 背景设定）】{chr(10)}{rag_context}" if rag_context else ""}
+{f"[Knowledge-base retrieval (L3 long-term memory and background lore)]{chr(10)}{rag_context}" if rag_context else ""}
 
-=== 性格交互协议（对话模式强化）===
-{persona if persona else "根据 NPC 的已有设定推演其社交反应，注意其说话方式、肢体语言和心理状态的一致性。"}
+=== Personality interaction protocol (enhanced dialogue mode) ===
+{persona if persona else "Simulate social responses according to the NPC's existing persona, keeping speech patterns, body language and psychological state consistent."}
 
 {_INSTRUCTION_DIALOGUE}
 
-必须返回严格 JSON（thought_process 为第一个字段）：
+Return strictly valid JSON (thought_process first):
 {_DIALOGUE_JSON_SCHEMA}{mood_block}{thrust_block}{gm_correction_block}"""
 
     elif action_type == "action":
-        # 行动模式：强化地图、砍 persona
+        # Action mode: emphasize map context, omit persona
         context_block = f"""{prefix}
-你必须严格遵守以下信息层级，绝不能编造或忽视任何已设定的内容。
+Strictly respect the following information hierarchy; never invent or ignore established facts.
 
-=== 第一优先级：硬性约束（违反即为错误）===
-【全局世界观——所有推演必须在此框架内，不得自行发明世界观外的设定】
+=== First priority: hard constraints (violations are errors)===
+[Global worldview — all simulations must remain within this framework and never invent settings outside it]
 {worldview}
 
-【角色当前状态——推演时必须参考，HP/SAN/物品必须与此一致】
+[Current character states — HP/SAN/items must stay consistent]
 {party_status}
 
-{f"【已知世界实体（L2 实体档案）——必须遵守其当前状态，不得矛盾】{chr(10)}{world_entities_text}" if world_entities_text else ""}
-{f"【地图空间感知——AI必须遵守此空间结构推演，不可凭空创造不存在的房间或通道】{chr(10)}{map_context}" if map_context else ""}
+{f"[Known world entities (L2 entity profiles) — their current states are authoritative; do not contradict them]{chr(10)}{world_entities_text}" if world_entities_text else ""}
+{f"[Spatial map awareness — follow this spatial structure; never invent nonexistent rooms or passages]{chr(10)}{map_context}" if map_context else ""}
 
-=== 第二优先级：上下文参考 ===
-{f"【L1 近期推演快照】{chr(10)}{l1_context}" if l1_context else ""}
+=== Second priority: contextual references ===
+{f"【L1 recent simulation snapshots】{chr(10)}{l1_context}" if l1_context else ""}
 
-【剧情记忆流】
+[Story memory stream]
 {session_memory}
 
-【相关设定词条】
+【Relevant lore entries】
 {relevant_lore}
-{f"【知识库检索结果（L3 长期记忆 + 背景设定）】{chr(10)}{rag_context}" if rag_context else ""}
+{f"[Knowledge-base retrieval (L3 long-term memory and background lore)]{chr(10)}{rag_context}" if rag_context else ""}
 
 {_INSTRUCTION_ACTION}
 
-必须返回严格 JSON（thought_process 为第一个字段）：
+Return strictly valid JSON (thought_process first):
 {_ACTION_JSON_SCHEMA}{mood_block}{thrust_block}{gm_correction_block}"""
 
     else:
-        # 混合模式：沿用原逻辑
+        # Mixed mode: retain the existing behavior
         context_block = f"""{prefix}
-你必须严格遵守以下信息层级，绝不能编造或忽视任何已设定的内容。
+Strictly respect the following information hierarchy; never invent or ignore established facts.
 
-=== 第一优先级：硬性约束（违反即为错误）===
-【全局世界观——所有推演必须在此框架内，不得自行发明世界观外的设定】
+=== First priority: hard constraints (violations are errors)===
+[Global worldview — all simulations must remain within this framework and never invent settings outside it]
 {worldview}
 
-【角色当前状态——推演时必须参考，HP/SAN/物品必须与此一致】
+[Current character states — HP/SAN/items must stay consistent]
 {party_status}
 
-{f"【已知世界实体（L2 实体档案）——必须遵守其当前状态，不得矛盾】{chr(10)}{world_entities_text}" if world_entities_text else ""}
-{f"【地图空间感知——AI必须遵守此空间结构推演，不可凭空创造不存在的房间或通道】{chr(10)}{map_context}" if map_context else ""}
+{f"[Known world entities (L2 entity profiles) — their current states are authoritative; do not contradict them]{chr(10)}{world_entities_text}" if world_entities_text else ""}
+{f"[Spatial map awareness — follow this spatial structure; never invent nonexistent rooms or passages]{chr(10)}{map_context}" if map_context else ""}
 
-=== 第二优先级：上下文参考 ===
-{f"【L1 近期推演快照】{chr(10)}{l1_context}" if l1_context else ""}
+=== Second priority: contextual references ===
+{f"【L1 recent simulation snapshots】{chr(10)}{l1_context}" if l1_context else ""}
 
-【剧情记忆流】
+[Story memory stream]
 {session_memory}
 
-【相关设定词条】
+【Relevant lore entries】
 {relevant_lore}
-{f"【知识库检索结果（L3 长期记忆 + 背景设定）】{chr(10)}{rag_context}" if rag_context else ""}
+{f"[Knowledge-base retrieval (L3 long-term memory and background lore)]{chr(10)}{rag_context}" if rag_context else ""}
 {persona}
 
 {_INSTRUCTION_MIXED}
 
-必须返回严格 JSON（thought_process 为第一个字段）：
+Return strictly valid JSON (thought_process first):
 {_DYNAMIC_OPTIONS_JSON_SCHEMA}{mood_block}{thrust_block}{gm_correction_block}"""
 
     return context_block + WORLD_PROMPT + '\n' + NARRATIVE_RULE
 
 
 # ---------------------------------------------------------
-# 推演结果后处理（NPC / stat / map / entity / memory）
+# Simulation result postprocessing (NPC / stat / map / entity / memory)
 # ---------------------------------------------------------
 def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
                                   player_action: str, current_node_id: int,
@@ -619,14 +619,14 @@ def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
                                   tl_id_for_memory: int | None = None,
                                   action_type: str = "mixed"):
     """
-    Phase 1：推演完成后仅创建草稿分支。
-    AI 返回 60 字短叙事 node_content + 副作用，创建节点和选项。
-    副作用序列化存储到 pending_effects 表，等玩家选择后执行。
+    Phase 1：Only create draft branches after simulation.
+    AI returns a 60-character node_content outline and effects, then creates nodes and options.
+    Serialize effects to pending_effects and apply them only after the player chooses.
 
-    前端调用链：
-      Phase 1: 推演 → _post_process（创建节点 + pending_effects）
-      Phase 2: expand-branch（扩写候选，等待确认）
-      Phase 3: commit-scene（确认正文与世界变化，执行规则）
+    Frontend call chain:
+      Phase 1: Simulation -> _post_process (create nodes + pending_effects)
+      Phase 2: expand-branch（Expand candidate, await confirmation）
+      Phase 3: commit-scene (confirm content and world changes, then apply rules)
     """
     thought_process = prose_renderer(conn, timeline_id)(str(parsed.get("thought_process", ""))) if isinstance(parsed, dict) else ""
 
@@ -635,21 +635,21 @@ def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
         return [], None, [], {}, thought_process, ""
 
     if not conn.execute("SELECT id FROM nodes WHERE id = ?", (current_node_id,)).fetchone():
-        raise ValueError("节点不存在")
+        raise ValueError("Node does not exist")
 
     new_options = []
     token = parsed.get("_state_token") or state_token(conn)
     if token != state_token(conn):
-        raise ValueError("世界已更新，请重新推演")
+        raise ValueError("World updated; regenerate")
     for branch_index, branch in enumerate(branches):
         clean_branch_prose(branch, prose_renderer(conn, timeline_id, branch))
         if parsed.get('_summary_contract') and len(branch['node_content']) > 100:
-            raise ValueError('归一化后的分支摘要不得超过100字符')
-        n_name = branch.get("node_name", "未知节点")[:50]
+            raise ValueError('Normalized branch summary must not exceed 100 characters')
+        n_name = branch.get("node_name", "Unknown node")[:50]
         n_content = branch.get("node_content", "")[:1000]
         o_text = branch.get("text", n_name)[:100]
 
-        # ── 收集副作用（优先 per-branch，fallback 到全局；省略的字段默认为空） ──
+        # ── Collect side effects (prefer per-branch, fall back to global; missing fields default to empty) ──
         b_stat_changes = branch.get("stat_changes", [])
         b_entity_updates = branch.get("entity_updates", "")
         b_map_actions = branch.get("map_actions")
@@ -657,7 +657,7 @@ def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
         b_emotion_deltas = branch.get("emotion_deltas") or []
         b_npc_memories = branch.get("npc_memories") or []
 
-        # ── 对话模式守卫 ──
+        # ── Dialogue-mode guard ──
         if action_type == "dialogue":
             san_delta_obj = branch.get("san_delta")
             if san_delta_obj and isinstance(san_delta_obj, dict):
@@ -696,7 +696,7 @@ def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
             "scene_name": scene_name,
             "player_action": player_action,
             "thought_process": thought_process,
-            "skeleton": n_content,  # 60字骨架原文，冻结于此，不受 expand-branch 扩写影响
+            "skeleton": n_content,  # Original 60-character outline; frozen here, unaffected by expand-branch
         }
         if parsed.get('_summary_contract'):
             fx_payload.update(summary_contract=parsed['_summary_contract'],
@@ -707,7 +707,7 @@ def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
 
         summary_text = o_text[:100]
 
-        # 60字短叙事：content 已含核心骨架，玩家选择后由 expand-branch 润色扩写
+        # 60-character short narrative: content contains the essential outline; expand-branch polishes it after selection
         cursor = conn.execute("INSERT INTO nodes (name, summary, content, is_draft) VALUES (?, ?, ?, 1)",
                               (n_name, summary_text, n_content))
         n_id = cursor.lastrowid
@@ -737,7 +737,7 @@ def _post_process_dynamic_result(conn, parsed: dict, scene_name: str,
 
 
 # ---------------------------------------------------------
-# Phase 3：用户确认扩写正文后，事务提交副作用和规则
+# Phase 3: after user approval of expanded content, commit effects and rules atomically
 # ---------------------------------------------------------
 class ApplyBranchEffectsRequest(BaseModel):
     node_id: int
@@ -765,21 +765,21 @@ def apply_branch_effects(req: ApplyBranchEffectsRequest, background_tasks: Backg
 
 
 # ---------------------------------------------------------
-# Phase 2：玩家选择摘要后，扩写候选正文并等待确认
-# （60字短叙事的核心配套端点——润色扩写）
+# Phase 2: after selecting a summary, expand candidate content and await approval
+# （Core endpoint for short narrative outlines: prose expansion）
 #
-# 【调用顺序】摘要 → expand-branch（服务器候选效果）→ 用户确认 → commit-scene。
-#   扩写仍是草稿，不产生世界事件、记忆或触发器效果。
+# [Call order] summary -> expand-branch (server-side candidate effects) -> user confirmation -> commit-scene.
+#   Expansion is still a draft: no world events, memory, or trigger effects are created.
 # ---------------------------------------------------------
 class ExpandBranchRequest(BaseModel):
     timeline_id: int | None = None
-    node_id: int              # 玩家选择的目标节点 ID
-    scene_name: str = ""      # 父场景名
-    scene_content: str = ""   # 父场景正文（关键上下文）
-    player_action: str = ""   # 玩家动作
-    model: str | None = None  # 请求级模型选择（可选）
-    fx_context: str = ""      # 兼容旧客户端，实际采用服务器已确认事件
-    action_type: str = ""     # 兼容旧客户端，实际采用服务器已确认事件
+    node_id: int              # Node ID selected by player
+    scene_name: str = ""      # Parent scene name
+    scene_content: str = ""   # Parent scene content (essential context)
+    player_action: str = ""   # Player action
+    model: str | None = None  # Per-request model selection (optional)
+    fx_context: str = ""      # Legacy-client compatibility; actual data comes from server-confirmed events
+    action_type: str = ""     # Legacy-client compatibility; actual data comes from server-confirmed events
 
 class ExpandBranchStreamRequest(ExpandBranchRequest):
     pass
@@ -799,9 +799,9 @@ def prepare_branch(request: PrepareBranchRequest):
 
 def _build_fx_context(fx_row) -> tuple[str, str]:
     """
-    从 pending_effects 行中提取副作用上下文文本和 action_type。
-    返回 (fx_context_str, action_type)。
-    供 expand-branch 的非流式和流式端点共享。
+    Extract effect context and action_type from the pending_effects record.
+    Return (fx_context_str, action_type).
+    Shared by non-streaming and streaming expand-branch endpoints.
     """
     if not fx_row:
         return "", "mixed"
@@ -817,97 +817,97 @@ def _build_fx_context(fx_row) -> tuple[str, str]:
         parts = []
         if sc.get("hp_delta"):  parts.append(f"HP{sc['hp_delta']:+d}")
         if sc.get("san_delta"): parts.append(f"SAN{sc['san_delta']:+d}")
-        if sc.get("inventory_append"): parts.append(f"获得[{sc['inventory_append']}]")
-        if sc.get("inventory_remove"): parts.append(f"失去[{sc['inventory_remove']}]")
+        if sc.get("inventory_append"): parts.append(f"Gained [{sc['inventory_append']}]")
+        if sc.get("inventory_remove"): parts.append(f"Lost [{sc['inventory_remove']}]")
         if parts:
             fx_parts.append(f"{sc.get('char_name', '')}: {', '.join(parts)}")
 
     if fx.get("entity_updates"):
-        fx_parts.append(f"实体变化：{fx['entity_updates']}")
+        fx_parts.append(f"Entity changes: {fx['entity_updates']}")
 
     ma = fx.get("map_actions")
     if ma and isinstance(ma, dict):
-        fx_parts.append('候选地图动作（发现与进入分别执行）：'+encode(ma))
+        fx_parts.append('Candidate map actions (discovery and entry are separate): '+encode(ma))
         if ma.get("movement"):
-            fx_parts.append(f"移动至：{ma['movement'].get('target_room_label', '')}")
+            fx_parts.append(f"Move to: {ma['movement'].get('target_room_label', '')}")
         if ma.get("new_room"):
-            fx_parts.append(f"发现新区域：{ma['new_room'].get('label', '')}")
+            fx_parts.append(f"Discover new area: {ma['new_room'].get('label', '')}")
 
     npc = fx.get("npc")
     if npc and isinstance(npc, dict):
-        fx_parts.append(f"NPC登场：{npc.get('name', '')} — {npc.get('backstory', '')}")
+        fx_parts.append(f"NPC introduction: {npc.get('name', '')} — {npc.get('backstory', '')}")
 
     if fx.get("new_entities"):
-        fx_parts.append("新实体候选档案：" + encode(fx["new_entities"]))
-    for field, label in (('emotion_deltas','候选情绪变化'),('npc_memories','候选人物记忆'),
-                         ('entity_changes','候选实体变化'),('state_definitions','候选状态定义'),('state_changes','候选动态状态')):
+        fx_parts.append("Candidate profiles for new entities: " + encode(fx["new_entities"]))
+    for field, label in (('emotion_deltas','Candidate emotion changes'),('npc_memories','Candidate character memories'),
+                         ('entity_changes','Candidate entity changes'),('state_definitions','Candidate state definitions'),('state_changes','Candidate dynamic states')):
         if fx.get(field): fx_parts.append(label + '：' + encode(fx[field]))
     if fx.get('deferred_effects'):
-        fx_parts.append('以下变化的对象未确定，暂缓执行；不要据此编造具体数值、物品或关系结果：' + encode(fx['deferred_effects']))
+        fx_parts.append('The targets of the following changes are unresolved and execution is deferred; do not invent specific stat, item or relationship outcomes from them: ' + encode(fx['deferred_effects']))
 
-    fx_context = ("【该分支的候选结果】\n" + "\n".join(fx_parts)) if fx_parts else "【该分支未提议额外副作用】"
+    fx_context = ("【Candidate outcomes for this branch】\n" + "\n".join(fx_parts)) if fx_parts else "【This branch proposes no additional side effects】"
     return fx_context, action_type
 
 
 def _build_expand_prompts(conn, req, node_name: str, current_content: str,
                            fx_context: str, action_type: str) -> tuple[str, str]:
     """
-    构建 expand-branch 的 system/user prompt。
-    注入完整上下文：世界观、角色、记忆流、设定词条、实体、地图、父场景正文、副作用。
+    Build the expand-branch system/user prompts.
+    Inject full context: worldview, characters, memory stream, lore entries, entities, map, parent scene content, and effects.
     """
     ctx = build_system_context(conn, req.scene_name, node_name, req.player_action, timeline_id=req.timeline_id)
     worldview, party_status, relevant_lore, session_memory, \
         l1_context, world_entities_text, rag_context, map_context = ctx
 
     if action_type == "dialogue":
-        style_hint = "【沉浸式对话】：除了台词本身（用「」包裹），补充说话时的神态变化、语气停顿或习惯性的小动作。环境描写仅作为自然的背景板，需绝对契合当前场景的氛围（如日常、严肃或轻松）。"
+        style_hint = "[Immersive dialogue]: Besides dialogue (enclosed in quotation marks), add changes in expression, pauses, and habitual gestures. Setting details should form a natural backdrop appropriate to the current scene's mood (everyday, serious, or lighthearted)."
     elif action_type == "action":
-        style_hint = "【动作与感知】：丰富动作的过程细节与直接的感官体验（如物品的触感、周遭的白噪音、温度等）。环境描写应与角色的动作产生实际交互（例如：拉开椅子发出摩擦声、端起冒热气的餐盘），拒绝流水账式的风景速写。"
+        style_hint = "【Action and perception】：Enrich actions with process details and direct sensory experience (texture, ambient noise, temperature). Setting descriptions should interact with character actions (e.g. scraping a chair or lifting a steaming plate), not become a list of scenery."
     else:
-        style_hint = "【综合推演】：自然流畅地交织动作、对话与周遭环境。保持符合当前场景基调的沉浸感，日常则温馨平实，危机则节奏紧凑。"
+        style_hint = "[Integrated simulation]: Weave together action, dialogue and surroundings naturally and fluidly. Maintain immersion appropriate to the scene: grounded and warm in everyday moments, fast-paced in crises."
 
-    system_prompt = f"""你是跑团GM。请为玩家选择的分支撰写一段完整的、引人入胜的场景描写。
+    system_prompt = f"""You are the tabletop RPG GM. Write a complete, engaging scene description for the branch selected by the player.
 
-【全局世界观】
+[Global worldview]
 {worldview}
 
-【角色当前状态】
+[Current character states]
 {party_status}
 
-{f"【已知世界实体】{chr(10)}{world_entities_text}" if world_entities_text else ""}
-{f"【地图空间感知】{chr(10)}{map_context}" if map_context else ""}
-{f"【相关设定词条】{chr(10)}{relevant_lore}" if relevant_lore and relevant_lore != "无" else ""}
-{f"【近期剧情记忆】{chr(10)}{session_memory}" if session_memory else ""}
+{f"[Known world entities]{chr(10)}{world_entities_text}" if world_entities_text else ""}
+{f"【Spatial map awareness】{chr(10)}{map_context}" if map_context else ""}
+{f"[Relevant lore entries]{chr(10)}{relevant_lore}" if relevant_lore and relevant_lore != "None" else ""}
+{f"【Recent story memory】{chr(10)}{session_memory}" if session_memory else ""}
 
-{f"【L1 近期推演快照】{chr(10)}{l1_context}" if l1_context else ""}
-{f"【百科证据】{chr(10)}{rag_context}" if rag_context else ""}
+{f"【L1 recent simulation snapshots】{chr(10)}{l1_context}" if l1_context else ""}
+{f"[Encyclopedia evidence]{chr(10)}{rag_context}" if rag_context else ""}
 
 {fx_context}
 
-【写作要求】
-- 基于下方【分支骨架】进行润色扩写，将其转化为富有代入感的文字描述。
-- 弹性字数：字数由事件的内容量自然决定（短至三五十字、长至百余字均可），绝对不要刻意凑字数。
+【Writing requirements】
+- Polish and expand the [Branch outline] below into immersive prose.
+- Flexible length: let the events determine length naturally, whether 30-50 words or over a hundred; never pad the writing.
 - {style_hint}
-- 当前结构化状态和已确认事件是权威；若骨架与其冲突，明确指出冲突，不通过编造消解。
-- 保留骨架中的所有关键细节（动作、伤害程度、环境元素），不得矛盾
-- 必须与【候选结果】中的数值变化一致——不得编造额外的 HP/物品/空间变化
-- 新登场角色以候选档案为准，不得在扩写时额外新增未声明角色。
-- 承接父场景的内容和氛围，保持叙事连贯,给出自然的动作收尾或留白
-- 不要输出 JSON，直接输出纯文本场景描写
-- 不要加任何前缀、标题或解释"""
+- Current structured states and confirmed events are authoritative; explicitly flag any contradiction instead of inventing a resolution.
+- Preserve all important details from the outline (actions, damage severity, environmental elements) without contradiction
+- Remain consistent with numeric effects in [Candidate outcomes]; do not invent additional HP, item, or spatial changes
+- Follow approved candidate profiles for new characters; do not introduce unregistered characters during expansion.
+- Continue the parent scene's content and mood; maintain narrative flow with a natural conclusion or an open ending
+- Output plain scene prose, not JSON
+- Do not add any prefix, title or explanation"""
     system_prompt += '\n' + NARRATIVE_RULE
 
-    # user prompt 包含完整的因果链：父场景 → 玩家行动 → 骨架 → 请求扩写
+    # User prompt contains the full causal chain: parent scene -> player action -> outline -> expansion request
     user_parts = []
     if req.scene_name:
-        user_parts.append(f"父场景名称：{req.scene_name}")
+        user_parts.append(f"Parent scene name: {req.scene_name}")
     if req.scene_content:
-        user_parts.append(f"父场景正文：{req.scene_content[:300]}")
+        user_parts.append(f"Parent scene content: {req.scene_content[:300]}")
     if req.player_action:
-        user_parts.append(f"玩家动作：{req.player_action}")
-    user_parts.append(f"分支标题：{node_name}")
-    user_parts.append(f"分支骨架（请基于此润色扩写）：{current_content}")
-    user_parts.append("请将上述骨架润色为一段完整的、有代入感且契合当前氛围的场景描写。")
+        user_parts.append(f"Player action: {req.player_action}")
+    user_parts.append(f"Branch title: {node_name}")
+    user_parts.append(f"Branch outline (polish and expand this): {current_content}")
+    user_parts.append("Polish the outline above into a complete, immersive scene description consistent with the current mood.")
 
     user_prompt = "\n".join(user_parts)
     return system_prompt, user_prompt
@@ -933,22 +933,22 @@ class DynamicActionRequest(BaseModel):
     scene_name: str = ""
     content: str = ""
     player_action: str = ""
-    gm_correction: str = ""  # GM 纠正指令（重新推演时填写）
-    action_type: str = "auto"  # "dialogue" | "action" | "mixed" — 动作经济分离
-    model: str | None = None   # 请求级模型选择（可选，覆盖服务器默认值）
-    mood: str = ""             # 叙事氛围预设（如"恐怖"/"史诗"，空字符串=不干预）
-    force_thrust: bool = False  # GM叙事推力：强制注入推动剧情指令（一次性）
+    gm_correction: str = ""  # GM correction instructions (when regenerating)
+    action_type: str = "auto"  # "dialogue" | "action" | "mixed" — separate action economy
+    model: str | None = None   # Per-request model choice (optional; overrides server default)
+    mood: str = ""             # Narrative mood preset (e.g. "horror"/"epic"; empty means no intervention)
+    force_thrust: bool = False  # GM narrative push: insert story-advancing instructions (one-time)
 
 class ExpandTextRequest(BaseModel):
     node_id: int | None = None
     scene_name: str = ""
     content: str = ""
-    model: str | None = None   # 请求级模型选择（可选）
+    model: str | None = None   # Per-request model selection (optional)
     timeline_id: int | None = None
 
 
 # ---------------------------------------------------------
-# SSE 流式推演端点（核心）
+# SSE simulation streaming endpoint (core)
 # ---------------------------------------------------------
 @agent_router.post("/api/ai/dynamic-options")
 def dynamic_options_handler(request: DynamicActionRequest):
@@ -963,7 +963,7 @@ def dynamic_options_stream(request: DynamicActionRequest):
 
 
 # ---------------------------------------------------------
-# 扩写端点
+# Expansion endpoint
 # ---------------------------------------------------------
 @agent_router.post("/api/ai/expand-text")
 def expand_scene_text(request:ExpandTextRequest):
@@ -972,7 +972,7 @@ def expand_scene_text(request:ExpandTextRequest):
 
 
 # ---------------------------------------------------------
-# 扩写流式端点
+# Streaming expansion endpoint
 # ---------------------------------------------------------
 @agent_router.post("/api/ai/expand-text/stream")
 def expand_scene_text_stream(request:ExpandTextRequest):
@@ -981,22 +981,22 @@ def expand_scene_text_stream(request:ExpandTextRequest):
 
 
 ##########################################################################
-# 将此路由追加到 agent.py 末尾
+# Append this route to the end of agent.py
 @agent_router.post("/api/ai/npc-chat/stream")
 def npc_chat_stream(request:NPCChatRequest):
     from agent_operations import npc_chat
     return npc_chat(request)
 
 
-# ── 请求模型 ──────────────────────────────────────────────────────────────────
+# ── Request model ──────────────────────────────────────────────────────────────────
 class NPCChatCommitRequest(BaseModel):
     operation_key: str = Field(default_factory=lambda: __import__("uuid").uuid4().hex)
     npc_name: str = ""
     entity_uid: str | None = None
     timeline_id: int | None = None
-    player_message: str      # 玩家最后一条消息
-    npc_reply: str           # NPC 完整回复文本
-    chat_summary: str = ""   # 可选：前端传来的对话摘要（不传时由后端推断）
+    player_message: str      # Player's last message
+    npc_reply: str           # Full NPC reply text
+    chat_summary: str = ""   # Optional dialogue summary from frontend (inferred by backend if omitted)
 
 
 @agent_router.post("/api/ai/npc-chat/commit")
