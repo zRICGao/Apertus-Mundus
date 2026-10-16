@@ -1,0 +1,2782 @@
+{
+  "name": "Limmat \u2014 The Forbidden River",
+  "description": "English feature-complete example adapted from the supplied Limmat scenario.",
+  "worldview": "Limmat \u2014 The Forbidden River. A fictional hidden-world student adventure in Zurich, preserving the source campaign's people and ACSSZ roles. Begin with the Protagonist arriving at Zurich HB. Beneath everyday academic life, Die ETH practices mathematical techno-alchemy at a SAN cost, while Die UZH channels life and natural resonance at an HP cost. The 1855 Limmat Treaty forbids exposing magic to ordinary citizens; ACSSZ remains a neutral student network. Li's Home at Freiestrasse 14 is a fixed, protected sanctuary, not a portable immunity. Preserve the distinction between mundane cover and concealed magic.\n\nGao Xing introduces the newcomer. Hou Jiale leads the presidium with vice presidents Xu Sijie and Yu Zhihe, and secretary-general Zhao Yifei. Preserve all other original departmental leaders and deputies. Do not replace them with newly named counterparts. Romanized names and their original aliases refer to the same immutable entity.\n\nThe adventure asks why the river reflects incompatible dawns. Gather evidence before blaming a faction. Inventory, typed states, actual positions, existing rooms and confirmed events are authoritative. Never fabricate a key, faction clearance, private memory or already-completed quest step. Speak and narrate in English. A proposed action, quotation or trigger condition is not an event that has occurred.\n\nAuthored lesson, departure and finale scenes pay their costs through their labelled triggers; generated prose must not charge those same scripted costs again. Other spells pay their own validated costs once. The secret prime timetable and 114-second fold are fictional story time; engine trigger cooldowns use real seconds. Only an explicit, confirmed attempt to analyze the forbidden view incurs its catastrophic source-rule consequence. Keep the blinds closed in the standard demo. Retain ordinary nonmagical and withdrawal options.\n\nTwo teams share one world. Field Arrival contains the Protagonist; Campus Watch contains the Second Investigator. Private conversations and memories stay within their scopes. Do not silently move one team with the other. Optional locked wings require a real map unlock and movement, not a narrative teleport. Discovery and entry are distinct.\nFor this example, HP and SAN start with a maximum of 100; recovery triggers respect that ceiling. An explicit confirmed forbidden-view analysis during the folded crossing can empty SAN and set irreversible logic_deadlock. Ordinary rest and the calming tonic cannot remove that state. Do not apply the catastrophe a second time through generated side effects if its labelled trigger already applies it.",
+  "session_memory": "The Protagonist has just arrived at HB. Gao Xing is waiting. Campus Watch is independently on duty at Li's Home. No envelope has been accepted, spell cast, hatch unlocked, fold completed or river repair committed.",
+  "characters": [
+    {
+      "id": 1,
+      "name": "Protagonist",
+      "role": "PC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "Luggage, Phone, Student admission letter",
+      "status": "active",
+      "personality": "A newly arrived student. Ask rather than assume their name, identity or magical allegiance.",
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af"
+    },
+    {
+      "id": 2,
+      "name": "Second Investigator",
+      "role": "PC",
+      "hp": 90,
+      "san": 90,
+      "inventory": "Watch notebook, Phone",
+      "status": "active",
+      "personality": "An optional second player character assigned to Campus Watch; not a replacement for any source character.",
+      "entity_uid": "ent_efefb5b01cc65a722277e0070565d514"
+    },
+    {
+      "id": 3,
+      "name": "Li",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Founder and planar master. A former ETH student and ACSSZ co-founder who belongs to neither magical faction. His origins remain unknown. He created the neutral wards of the apartment at Freiestrasse 14. Do not reveal his home plane as established fact.",
+      "entity_uid": "ent_0593b575038d1fc6e2cb45bc5ee64b17"
+    },
+    {
+      "id": 4,
+      "name": "Hou Jiale",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "President and supreme arbitrator. Coordinates ACSSZ survival strategy and arbitrates difficult decisions under the treaty. Leads the presidium without surrendering its neutrality.",
+      "entity_uid": "ent_7b52f3aa6196f12b6424c260624ecb0b"
+    },
+    {
+      "id": 5,
+      "name": "Xu Sijie",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Vice president. Supports Hou Jiale in maintaining the underground network and its fragile peace. In this adventure, supervises the controlled vitality demonstration and records its cost.",
+      "entity_uid": "ent_7faa8021f4ed5689c81cead4f9d8c8dd"
+    },
+    {
+      "id": 6,
+      "name": "Yu Zhihe",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Vice president. Supports Hou Jiale in maintaining the underground network and its fragile peace. Coordinates the safehouse watch in this adventure.",
+      "entity_uid": "ent_98688ff6767435cb04f9ea4dab5fce59"
+    },
+    {
+      "id": 7,
+      "name": "Zhao Yifei",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Secretary-general and confidential dispatcher. Runs confidential dispatch for the presidium. Receives reports from both field parties and keeps requests attributable to their actual source.",
+      "entity_uid": "ent_a7e5eb274699a28cd918b7b67f834e8b"
+    },
+    {
+      "id": 8,
+      "name": "Gao Xing",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Head of the Secretariat / Privy Council. Uses orientation and newcomer support as cover for guiding new awakeners, erasing magical traces and protecting mundane memories. Welcomes the protagonist at HB.",
+      "entity_uid": "ent_8600ba8da74c26449700e978a097bdc6"
+    },
+    {
+      "id": 9,
+      "name": "Jia Weimeng",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Head of Public Relations / Aether Negotiation Bureau. Handles dangerous diplomacy with the two universities and contains aether incidents. Can broker the neutral river-seal agreement, but cannot promise consent from an absent faction.",
+      "entity_uid": "ent_87541e24beca274e0955be582e276c7c"
+    },
+    {
+      "id": 10,
+      "name": "Liu Jiao",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Public Relations deputy. Assists Jia Weimeng with faction diplomacy and public-safety cover. Knows which apparent tourists are watching Central.",
+      "entity_uid": "ent_31743a29b4e88d923094bf08ba61ff6a"
+    },
+    {
+      "id": 11,
+      "name": "Zhang Dingyuan",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Head of Corporate Relations / underground supplies. Organizes sponsorship as cover for acquiring and allocating scarce restoration supplies and magical materials. Keeps a strict inventory.",
+      "entity_uid": "ent_ef2bdd123f0bc2ee5d09af756bedda6d"
+    },
+    {
+      "id": 12,
+      "name": "Chen Yuyang",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Corporate Relations deputy. Assists Zhang Dingyuan with cross-faction supplies. Provides one documented calming tonic instead of unlimited free healing.",
+      "entity_uid": "ent_c904306637e0371196092a8ec9f13682"
+    },
+    {
+      "id": 13,
+      "name": "Jia Chu",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Head of Culture and Sports / tactical rescue. Converts public events into defensive rituals and coordinates extraction from dangerous magical areas. Does not teleport teams through locked passages.",
+      "entity_uid": "ent_389c2c537561be03cb33ff58782dc858"
+    },
+    {
+      "id": 14,
+      "name": "Liu Runpu",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Culture and Sports deputy. Assists Jia Chu with group defense and tactical rescue under ordinary crowd cover.",
+      "entity_uid": "ent_5be16b61ebfe1e01ae8cd22c8d066b68"
+    },
+    {
+      "id": 15,
+      "name": "Zhang Xindi",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Head of Publicity / Illusion Weaving Bureau. Uses media cover and cognitive interference to disguise supernatural incidents as campus activities or natural phenomena.",
+      "entity_uid": "ent_0ffe6c1c17de1bc4b8b99c138704d639"
+    },
+    {
+      "id": 16,
+      "name": "Huang Sice",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Publicity deputy. Assists Zhang Xindi with illusion weaving and public explanations. Distinguishes an approved cover story from a confirmed world fact.",
+      "entity_uid": "ent_4c50bf8f0410c094c976b622315017b3"
+    },
+    {
+      "id": 17,
+      "name": "Liu Zisen",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Head of Information / cyber-ward infrastructure. Builds digital wards, communications and counter-tracking defenses. In this adventure, teaches the authorized geometric calibration and documents its SAN cost.",
+      "entity_uid": "ent_130cd0e1fc02868ecfb05516bb4692bf"
+    },
+    {
+      "id": 18,
+      "name": "Shang Haoliang",
+      "role": "NPC",
+      "hp": 100,
+      "san": 100,
+      "inventory": "",
+      "status": "active",
+      "personality": "Information deputy. Assists Liu Zisen with communications, digital wards and counter-tracking. Can compare the two field parties' authenticated observations.",
+      "entity_uid": "ent_1836c46eb58f6d4239e1fa9355ee0c73"
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Arrival \u2014 First Light",
+      "summary": "A new student arrives at HB.",
+      "content": "The train settles beneath the vaulted roof of Zurich HB. Coffee and warm pastry mingle with the cold morning air. Beneath the great clock, Gao Xing holds a modest ACSSZ welcome card. For a moment the clock's reflection advances before its hands do. Nobody else seems to notice. Your luggage is still beside you; no invitation has yet been accepted.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 2,
+      "name": "An Ordinary Welcome",
+      "summary": "Gao Xing offers practical orientation.",
+      "content": "Gao Xing confirms your name before explaining where to find groceries, a bed and the campus tram. Then he lowers his voice. \"If the river shows you another morning, call us before you follow it.\" He opens an orientation envelope and waits for you to accept it. A brass coin inside is warmer than the paper around it.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 3,
+      "name": "ShopVille \u2014 Locker 1855",
+      "summary": "A coin and a maintenance hatch.",
+      "content": "The shopping arcade hums with ordinary errands. Near the lockers, the last four digits of a maintenance label read 1855. A seam shaped like the edge of a coin interrupts the metal. The hatch remains closed; spotting it has not opened it or moved you through it.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 4,
+      "name": "Central \u2014 Under Observation",
+      "summary": "Public space demands restraint.",
+      "content": "Trams cross Central in disciplined ribbons. Liu Jiao waits by a public noticeboard while Zhang Xindi and Huang Sice discuss a harmless campus announcement. Across the street, someone wearing a visitor badge checks the same ticket twice. This is a crowded public place. Talking about magic is safe; displaying it is another matter.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 5,
+      "name": "Polybahn \u2014 Day Service",
+      "summary": "A normal journey remains possible.",
+      "content": "The red carriage waits behind a glass door. Its public display shows an ordinary daytime service. A smaller maintenance screen briefly reads 00:11, then returns to a diagnostic page. The regular car climbs toward Polyterrasse. Waiting for the concealed departure is a separate, deliberate choice.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 6,
+      "name": "Wait for the Prime Departure",
+      "summary": "Consent to the fictional midnight transfer.",
+      "content": "You return after the city has quieted and request admission to the controlled 00:11 transfer. Gao Xing checks the charged terminal already fixed inside the car. By presenting the handbook and ticket you consent to the six-SAN transfer; if either document is absent, the concealed service will not admit you. The blinds must stay closed.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 7,
+      "name": "The Fold \u2014 Blinds Down",
+      "summary": "The registered carriage enters folded space.",
+      "content": "The carriage closes around a silence deeper than midnight. Beyond the blind, water seems to fall upward, but you keep your eyes on the floor. A handwritten strip on the door counts down 114 seconds of story time. This cabin is a real registered location in the adventure map; the platform above and the underground hub ahead are distinct places.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 8,
+      "name": "The Aether Interchange",
+      "summary": "Two traditions share an unstable boundary.",
+      "content": "Cooling pipes vanish into one wall; pale roots disappear through another. The underground interchange smells of metal and rain. A neutral passage leads toward the river seal. Separate locked wings carry ETH and UZH marks. Their existence grants no permission to enter them. The service lift offers an alternate return through the old maintenance route.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 9,
+      "name": "Authorized Geometric Calibration",
+      "summary": "Liu Zisen demonstrates the mental cost.",
+      "content": "In a screened seminar alcove, Liu Zisen and Shang Haoliang set a titanium compass beside an isolated terminal. You agree to a single supervised calibration. Its four points refuse to stay in one plane; holding them together costs concentration. The prepared core and the access card remain on the desk until the completed exercise is recorded.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 10,
+      "name": "A Measure of Living Resonance",
+      "summary": "Xu Sijie supervises a controlled vitality exercise.",
+      "content": "At the archive's private worktable, Xu Sijie describes a much older procedure. You may contribute a small, measured amount of vitality to a sealed resonance vessel. There is no audience, no spectacle and no claim that injury is free. The vial is labelled for the river investigation rather than a permanent allegiance.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 11,
+      "name": "Polyterrasse \u2014 Two Dawns",
+      "summary": "The river offers incompatible reflections.",
+      "content": "From the terrace the city seems perfectly ordinary, until a passing cloud reveals two directions of light in the river. The ETH entrance is nearby. A signed note from Zhao Yifei asks both field parties to preserve what they saw rather than decide which institution must be guilty.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 12,
+      "name": "The River Archive",
+      "summary": "The treaty appendix can be recovered.",
+      "content": "An archive desk holds a sealed facsimile folder requested by the presidium. Its accession number matches the maintenance label below HB. The archivist's note authorizes the investigation to take one Treaty copy. The public river promenade is outside; a registered stair descends toward the Seal Chamber.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 13,
+      "name": "The Seal Chamber",
+      "summary": "Evidence must precede intervention.",
+      "content": "Below the river, two concentric patterns fall out of step. Jia Weimeng asks you to place the Treaty copy, Calibration core and Resonance vial on the dry table before choosing an intervention. Until all three are present, nobody has established a workable repair. The stair to the archive remains a safe retreat.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 14,
+      "name": "Proposal \u2014 The Geometric Answer",
+      "summary": "Commit an ETH-style repair only if prepared.",
+      "content": "You prepare the compass and identify the phase the core recorded. This scene is a proposal for one precise computational correction, not proof of success. The documented intervention costs 10 SAN and consumes both prepared components if the engine accepts it.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 15,
+      "name": "Proposal \u2014 The Living Answer",
+      "summary": "Commit a UZH-style repair only if prepared.",
+      "content": "You prepare the vessel and listen for the resonance beneath the stone. This scene proposes a measured living correction; it does not declare that the river is already safe. The documented intervention costs 10 HP and consumes both prepared components if accepted.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 16,
+      "name": "Proposal \u2014 A Narrow Truce",
+      "summary": "Commit a neutral repair only if prepared.",
+      "content": "Jia Weimeng lays out a limited maintenance agreement. Hou Jiale will arbitrate its boundaries and Zhao Yifei will preserve the record. You prepare to couple the two channels without declaring either tradition superior. The procedure costs 5 HP and 5 SAN and consumes both prepared components if accepted.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 17,
+      "name": "Li's Home \u2014 Rest",
+      "summary": "A deliberate pause within the neutral ward.",
+      "content": "The apartment at Freiestrasse 14 is quiet. Chen Yuyang sets out water while Zhang Dingyuan checks the remaining supplies. Jia Chu and Liu Runpu discuss a real route home rather than a miraculous extraction. You choose to stay on Li's sofa and recover. The window shows only one river for now; the mirror is another question.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 18,
+      "name": "Maintenance Route 1855",
+      "summary": "An optional alternate route below HB.",
+      "content": "Once the hatch has actually been unlocked, the old maintenance passage can be entered. Components along the wall show delicate silicon growth. The lift reaches the underground interchange. Discovery of this corridor alone neither unlocks the hatch behind you nor proves what caused the contamination.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 19,
+      "name": "The Logical Cooling Corridor",
+      "summary": "An optional ETH access test.",
+      "content": "Beyond the credential-controlled airlock, fans carry a rhythm that keeps trying to become a proof. The cooling corridor offers stairs to the array room and a rusted door to discarded records. Respect your current SAN and the established retreat route; proximity is not a free extra attack every turn.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 20,
+      "name": "The Disordered Greenhouse",
+      "summary": "An optional UZH access test.",
+      "content": "The marked arch opens into a subterranean canopy. Leaves pulse a little too slowly. A root stair descends to the Verdant Temple perimeter. Sampling, fighting and casting all require explicit choices; merely observing a frond is not consent to an injury.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 21,
+      "name": "The Verdant Temple Perimeter",
+      "summary": "Ancient life rites surround a locked laboratory.",
+      "content": "Old channels in the stone carry no fresh blood. A Living bone token controls the laboratory beyond. A warning from the field guide names grade-three aberrations as a reason to call for support, not an invitation to face them alone. A sealed ritual tray bears an instruction left for the authorized river investigation; it can issue a token only after the treaty appendix and controlled resonance have been recorded.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 22,
+      "name": "The Flesh-Shaping Laboratory",
+      "summary": "Optional danger and restraint.",
+      "content": "Worktables have been remade as altars. Behind a screen, an aether aberration shifts among shapes it cannot quite hold. The protagonist may document it, withdraw or contact rescue. No encounter has yet been won and no material has been harvested.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 23,
+      "name": "The Antique Mirror",
+      "summary": "A voluntary hook inside the safehouse.",
+      "content": "The mirror reflects an unfamiliar shoreline for less than a heartbeat. Li's message provides no name for that place. You may record the observation and close the cover. Further revelations require a deliberate GM-approved epilogue; the original mystery of Li's origin remains open.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 24,
+      "name": "The Polyhedral Core Abyss",
+      "summary": "Optional endgame research.",
+      "content": "Layers of geometry revolve without a common center. The instruments register the same phase mismatch described in the recovered appendix. This is dangerous research territory, not permission to accuse a named person or waive the cost of a new spell.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 25,
+      "name": "The Quantum Array Room",
+      "summary": "An optional mechanical clue.",
+      "content": "The arrays are isolated from the public grid. A maintenance terminal logs a delayed synchronization packet. Its existence is evidence of delay, not by itself evidence of malicious intent. The core elevator is still credential controlled. The isolated terminal can issue a limited core-elevator key to an investigator whose authorized calibration is already recorded.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 27,
+      "name": "Campus Watch \u2014 Dispatch Desk",
+      "summary": "A separate party starts in the same world.",
+      "content": "The Second Investigator sits with Yu Zhihe and Zhao Yifei at the safehouse dispatch desk. A report from the field must be confirmed before the watch can use it as fact. The watch is not aboard the other team's carriage, and its drafts do not travel with that team.",
+      "expanded_content": "",
+      "is_draft": 0
+    },
+    {
+      "id": 28,
+      "name": "Discarded Aether Records",
+      "summary": "An optional clue to compare with the seal.",
+      "content": "Old diagrams and offline disks fill the room. One record describes a disagreement between a computational clock and a biological cycle. It can be compared with the prepared components. The sealed ventilation shaft and core elevator remain separate, locked routes. One offline computation core remains in a labelled maintenance drawer; identifying it safely requires the authorized calibration and treaty appendix.",
+      "expanded_content": "",
+      "is_draft": 0
+    }
+  ],
+  "options": [
+    {
+      "id": 1,
+      "node_id": 1,
+      "text": "Meet Gao Xing under the clock",
+      "next_node_id": 2
+    },
+    {
+      "id": 2,
+      "node_id": 2,
+      "text": "Continue into ShopVille",
+      "next_node_id": 3
+    },
+    {
+      "id": 3,
+      "node_id": 3,
+      "text": "Return to the welcome point",
+      "next_node_id": 2
+    },
+    {
+      "id": 4,
+      "node_id": 3,
+      "text": "Take the public stairs to Central",
+      "next_node_id": 4
+    },
+    {
+      "id": 5,
+      "node_id": 4,
+      "text": "Walk to the Polybahn lower station",
+      "next_node_id": 5
+    },
+    {
+      "id": 6,
+      "node_id": 4,
+      "text": "Visit the River Archive",
+      "next_node_id": 12
+    },
+    {
+      "id": 7,
+      "node_id": 4,
+      "text": "Walk to Li's Home",
+      "next_node_id": 17
+    },
+    {
+      "id": 8,
+      "node_id": 5,
+      "text": "Take the ordinary daytime carriage",
+      "next_node_id": 11
+    },
+    {
+      "id": 9,
+      "node_id": 5,
+      "text": "Present handbook and ticket for the 00:11 transfer (6 SAN)",
+      "next_node_id": 6
+    },
+    {
+      "id": 10,
+      "node_id": 5,
+      "text": "Walk back to Central",
+      "next_node_id": 4
+    },
+    {
+      "id": 11,
+      "node_id": 6,
+      "text": "Decline the midnight transfer",
+      "next_node_id": 5
+    },
+    {
+      "id": 12,
+      "node_id": 7,
+      "text": "Leave the folded cabin for the interchange",
+      "next_node_id": 8
+    },
+    {
+      "id": 13,
+      "node_id": 8,
+      "text": "Follow the neutral passage to the seal",
+      "next_node_id": 13
+    },
+    {
+      "id": 14,
+      "node_id": 8,
+      "text": "Take the service lift toward HB",
+      "next_node_id": 18
+    },
+    {
+      "id": 15,
+      "node_id": 9,
+      "text": "Return to Polyterrasse",
+      "next_node_id": 11
+    },
+    {
+      "id": 16,
+      "node_id": 10,
+      "text": "Return to the archive desk",
+      "next_node_id": 12
+    },
+    {
+      "id": 17,
+      "node_id": 11,
+      "text": "Request Liu Zisen's authorized calibration",
+      "next_node_id": 9
+    },
+    {
+      "id": 18,
+      "node_id": 11,
+      "text": "Walk to the safehouse",
+      "next_node_id": 17
+    },
+    {
+      "id": 19,
+      "node_id": 11,
+      "text": "Take the regular carriage down",
+      "next_node_id": 5
+    },
+    {
+      "id": 20,
+      "node_id": 12,
+      "text": "Consent to Xu Sijie's controlled resonance exercise",
+      "next_node_id": 10
+    },
+    {
+      "id": 21,
+      "node_id": 12,
+      "text": "Descend the registered archive stair",
+      "next_node_id": 13
+    },
+    {
+      "id": 22,
+      "node_id": 12,
+      "text": "Return to Central",
+      "next_node_id": 4
+    },
+    {
+      "id": 23,
+      "node_id": 13,
+      "text": "Return to the archive without intervening",
+      "next_node_id": 12
+    },
+    {
+      "id": 24,
+      "node_id": 14,
+      "text": "Leave a report at the archive",
+      "next_node_id": 12
+    },
+    {
+      "id": 25,
+      "node_id": 15,
+      "text": "Leave a report at the archive",
+      "next_node_id": 12
+    },
+    {
+      "id": 26,
+      "node_id": 16,
+      "text": "Leave a report at the archive",
+      "next_node_id": 12
+    },
+    {
+      "id": 27,
+      "node_id": 17,
+      "text": "Return to Central",
+      "next_node_id": 4
+    },
+    {
+      "id": 28,
+      "node_id": 17,
+      "text": "Walk toward Polyterrasse",
+      "next_node_id": 11
+    },
+    {
+      "id": 29,
+      "node_id": 18,
+      "text": "Take the lift to the interchange",
+      "next_node_id": 8
+    },
+    {
+      "id": 30,
+      "node_id": 19,
+      "text": "Descend the metal stairs",
+      "next_node_id": 25
+    },
+    {
+      "id": 31,
+      "node_id": 19,
+      "text": "Inspect the discarded records",
+      "next_node_id": 28
+    },
+    {
+      "id": 32,
+      "node_id": 20,
+      "text": "Descend the root stair",
+      "next_node_id": 21
+    },
+    {
+      "id": 33,
+      "node_id": 21,
+      "text": "Return to the greenhouse",
+      "next_node_id": 20
+    },
+    {
+      "id": 34,
+      "node_id": 22,
+      "text": "Withdraw through the previously opened door",
+      "next_node_id": 21
+    },
+    {
+      "id": 35,
+      "node_id": 23,
+      "text": "Cover the mirror and return to rest",
+      "next_node_id": 17
+    },
+    {
+      "id": 36,
+      "node_id": 25,
+      "text": "Return up the stairs",
+      "next_node_id": 19
+    },
+    {
+      "id": 37,
+      "node_id": 28,
+      "text": "Return to the cooling corridor",
+      "next_node_id": 19
+    },
+    {
+      "id": 38,
+      "node_id": 27,
+      "text": "Take a break in the same safehouse",
+      "next_node_id": 17
+    },
+    {
+      "id": 39,
+      "node_id": 17,
+      "text": "Visit the dispatch desk",
+      "next_node_id": 27
+    }
+  ],
+  "lorebook": [
+    {
+      "id": 1,
+      "keywords": "ETH, techno-alchemy, SAN",
+      "content": "Die ETH's geometric and computational spells consume SAN; authorized lessons and scripted repairs charge their labelled trigger costs once."
+    },
+    {
+      "id": 2,
+      "keywords": "UZH, vitality, HP",
+      "content": "Die UZH's life-resonance spells consume HP; discussing or observing magic is not a cast."
+    },
+    {
+      "id": 3,
+      "keywords": "Li, Li's Home, Freiestrasse 14",
+      "content": "A former ETH student and ACSSZ co-founder who belongs to neither magical faction. His origins remain unknown. He created the neutral wards of the apartment at Freiestrasse 14. Do not reveal his home plane as established fact. The safehouse contains the sofa, bar, ambient lights, sound system, balcony and unexplained antique mirror."
+    },
+    {
+      "id": 4,
+      "keywords": "ACSSZ, presidium, Secretariat, departments",
+      "content": "The original ACSSZ roster and organizational relationships are preserved. Consult the people source for each office."
+    },
+    {
+      "id": 5,
+      "keywords": "1855, Treaty, concealment",
+      "content": "The treaty prohibits public magical exposure; a proposed or merely quoted spell is not a breach. The AI-based alarm requires a confirmed visible cast."
+    },
+    {
+      "id": 6,
+      "keywords": "Polybahn, midnight, 114",
+      "content": "The folded service uses a fictional prime timetable. The standard walkthrough keeps the blinds closed; viewing the map is not looking out in character."
+    },
+    {
+      "id": 7,
+      "keywords": "river, investigation, evidence",
+      "content": "A doubled dawn is the observed anomaly. Do not invent a guilty person or discard the option to investigate, negotiate or withdraw."
+    }
+  ],
+  "triggers": [
+    {
+      "id": 1,
+      "label": "Orientation accepted",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "2"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "ACSSZ handbook"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Rune coin"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Midnight ticket"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Calming tonic"
+        },
+        {
+          "type": "set_flag",
+          "key": "orientation_complete",
+          "value": "true"
+        },
+        {
+          "type": "add_memory",
+          "text": "Gao Xing provided the orientation envelope. No faction allegiance was chosen."
+        },
+        {
+          "type": "inject_text",
+          "text": "You accept Gao Xing's envelope: ACSSZ handbook, Rune coin, Midnight ticket and one Calming tonic are now recorded in your inventory."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 2,
+      "label": "Identify locker 1855",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "3"
+          },
+          {
+            "type": "item",
+            "value": "Rune coin"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "inject_text",
+          "text": "The Rune coin matches the hatch recess. Use a validated map unlock action to open passage 202; noticing the lock does not open it."
+        },
+        {
+          "type": "add_lore",
+          "keywords": "Locker 1855, Rune coin, maintenance hatch",
+          "content": "The Rune coin fits the ShopVille maintenance hatch. The registered locked passage must actually be unlocked before entering."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        1
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 3,
+      "label": "Recover the treaty appendix",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "12"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Treaty copy"
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+              "state_key": "treaty_recovered",
+              "value": true,
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "reveal_rag",
+          "doc_id": 3
+        },
+        {
+          "type": "add_memory",
+          "text": "The archive supplied the Treaty copy, including its joint-seal appendix."
+        },
+        {
+          "type": "inject_text",
+          "text": "The authorized Treaty copy is now in your inventory; its evidence source is enabled for retrieval."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 4,
+      "label": "Prime departure \u2014 controlled hard transition",
+      "target_node_id": 7,
+      "mode": "hard",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "6"
+          },
+          {
+            "type": "item",
+            "value": "ACSSZ handbook"
+          },
+          {
+            "type": "item",
+            "value": "Midnight ticket"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Midnight ticket"
+        },
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": -6
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+              "state_key": "awakened",
+              "value": true,
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "reveal_rag",
+          "doc_id": 7
+        },
+        {
+          "type": "set_flag",
+          "key": "chapter",
+          "value": "the_hidden_river"
+        },
+        {
+          "type": "mod_worldview",
+          "op": "append",
+          "text": "The protagonist has completed the first controlled Polybahn transfer. The river's doubled reflection is an observed anomaly, not an identified saboteur."
+        },
+        {
+          "type": "add_memory",
+          "text": "At fictional 00:11 the guide's charged terminal initiated a fold. The ticket was consumed, 6 SAN paid, and the blinds stayed closed."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        1
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 5,
+      "label": "The 114-second rule",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "7"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "inject_text",
+          "text": "Keep the blinds closed for 114 fictional seconds. Viewing this screen or map is not an in-character attempt to analyze the outside."
+        },
+        {
+          "type": "add_memory",
+          "text": "The folded cabin protocol was read without looking outside."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        4
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 6,
+      "label": "Authorized ETH calibration",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "9"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": -4
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Calibration core"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "ETH access card"
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+              "state_key": "knows_eth",
+              "value": true,
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "mod_npc",
+          "entity_uid": "ent_130cd0e1fc02868ecfb05516bb4692bf",
+          "field": "emotion_trust",
+          "delta": 15
+        },
+        {
+          "type": "mod_npc",
+          "entity_uid": "ent_130cd0e1fc02868ecfb05516bb4692bf",
+          "field": "memory_add",
+          "value": "The protagonist completed the authorized calibration and accepted its documented cost."
+        },
+        {
+          "type": "inject_text",
+          "text": "The calibration succeeds: 4 SAN are spent once; the Calibration core and ETH access card are recorded. Liu Zisen remembers your cooperation."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 7,
+      "label": "Controlled UZH resonance",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "10"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "hp",
+          "delta": -4
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Resonance vial"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "UZH verdant mark"
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+              "state_key": "knows_uzh",
+              "value": true,
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "mod_npc",
+          "entity_uid": "ent_7faa8021f4ed5689c81cead4f9d8c8dd",
+          "field": "emotion_trust",
+          "delta": 15
+        },
+        {
+          "type": "inject_text",
+          "text": "The controlled exercise succeeds: 4 HP are spent once; the Resonance vial and UZH verdant mark are recorded."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 8,
+      "label": "Evidence unlocks three proposals",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "13"
+          },
+          {
+            "type": "item",
+            "value": "Treaty copy"
+          },
+          {
+            "type": "item",
+            "value": "Calibration core"
+          },
+          {
+            "type": "item",
+            "value": "Resonance vial"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_ac0408073c9635dd4bdbcc42b5754765\", \"state_key\": \"seal_outcome\", \"operator\": \"eq\", \"value\": \"unresolved\"}"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "reveal_rag",
+          "doc_id": 8
+        },
+        {
+          "type": "inject_option",
+          "text": "Propose the ETH correction (10 SAN)",
+          "next_node_id": 14
+        },
+        {
+          "type": "inject_option",
+          "text": "Propose the UZH correction (10 HP)",
+          "next_node_id": 15
+        },
+        {
+          "type": "inject_option",
+          "text": "Propose a neutral joint correction (5 HP + 5 SAN)",
+          "next_node_id": 16
+        },
+        {
+          "type": "inject_text",
+          "text": "The three sources agree on a phase mismatch. Three proposals are now available. None has happened yet."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        3,
+        6,
+        7
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 9,
+      "label": "Resolve the river \u2014 eth",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "14"
+          },
+          {
+            "type": "item",
+            "value": "Treaty copy"
+          },
+          {
+            "type": "item",
+            "value": "Calibration core"
+          },
+          {
+            "type": "item",
+            "value": "Resonance vial"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_ac0408073c9635dd4bdbcc42b5754765\", \"state_key\": \"seal_outcome\", \"operator\": \"eq\", \"value\": \"unresolved\"}"
+          },
+          {
+            "type": "stat",
+            "value": "san>=11"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": -10
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Calibration core"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Resonance vial"
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_ac0408073c9635dd4bdbcc42b5754765",
+              "state_key": "seal_outcome",
+              "value": "eth",
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "set_flag",
+          "key": "ending",
+          "value": "eth"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Mirror invitation"
+        },
+        {
+          "type": "reveal_rag",
+          "doc_id": 9
+        },
+        {
+          "type": "add_memory",
+          "text": "The geometric phase locks into place. The river resumes one dawn. Computational monitoring is required; the treaty remains in force."
+        },
+        {
+          "type": "inject_text",
+          "text": "CONFIRMED OUTCOME: The geometric phase locks into place. The river resumes one dawn. Computational monitoring is required; the treaty remains in force."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        8
+      ],
+      "exclude_trigger_ids": [
+        10,
+        11
+      ],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 10,
+      "label": "Resolve the river \u2014 uzh",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "15"
+          },
+          {
+            "type": "item",
+            "value": "Treaty copy"
+          },
+          {
+            "type": "item",
+            "value": "Calibration core"
+          },
+          {
+            "type": "item",
+            "value": "Resonance vial"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_ac0408073c9635dd4bdbcc42b5754765\", \"state_key\": \"seal_outcome\", \"operator\": \"eq\", \"value\": \"unresolved\"}"
+          },
+          {
+            "type": "stat",
+            "value": "hp>=11"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "hp",
+          "delta": -10
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Calibration core"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Resonance vial"
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_ac0408073c9635dd4bdbcc42b5754765",
+              "state_key": "seal_outcome",
+              "value": "uzh",
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "set_flag",
+          "key": "ending",
+          "value": "uzh"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Mirror invitation"
+        },
+        {
+          "type": "reveal_rag",
+          "doc_id": 9
+        },
+        {
+          "type": "add_memory",
+          "text": "The living channel finds a stable rhythm. The river resumes one dawn. Its ecological effects require monitoring; the treaty remains in force."
+        },
+        {
+          "type": "inject_text",
+          "text": "CONFIRMED OUTCOME: The living channel finds a stable rhythm. The river resumes one dawn. Its ecological effects require monitoring; the treaty remains in force."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        8
+      ],
+      "exclude_trigger_ids": [
+        9,
+        11
+      ],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 11,
+      "label": "Resolve the river \u2014 neutral",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "16"
+          },
+          {
+            "type": "item",
+            "value": "Treaty copy"
+          },
+          {
+            "type": "item",
+            "value": "Calibration core"
+          },
+          {
+            "type": "item",
+            "value": "Resonance vial"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_ac0408073c9635dd4bdbcc42b5754765\", \"state_key\": \"seal_outcome\", \"operator\": \"eq\", \"value\": \"unresolved\"}"
+          },
+          {
+            "type": "stat",
+            "value": "hp>=6"
+          },
+          {
+            "type": "stat",
+            "value": "san>=6"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": -5
+        },
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "hp",
+          "delta": -5
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Calibration core"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Resonance vial"
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_ac0408073c9635dd4bdbcc42b5754765",
+              "state_key": "seal_outcome",
+              "value": "neutral",
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "set_flag",
+          "key": "ending",
+          "value": "neutral"
+        },
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Mirror invitation"
+        },
+        {
+          "type": "reveal_rag",
+          "doc_id": 9
+        },
+        {
+          "type": "add_memory",
+          "text": "The channels settle together. Jia Weimeng brokers a limited maintenance truce; Hou Jiale arbitrates and Zhao Yifei records it. The river resumes one dawn, while the larger treaty remains unresolved."
+        },
+        {
+          "type": "inject_text",
+          "text": "CONFIRMED OUTCOME: The channels settle together. Jia Weimeng brokers a limited maintenance truce; Hou Jiale arbitrates and Zhao Yifei records it. The river resumes one dawn, while the larger treaty remains unresolved."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        8
+      ],
+      "exclude_trigger_ids": [
+        9,
+        10
+      ],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 12,
+      "label": "Safehouse recovery \u2014 limited and scoped",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "17"
+          },
+          {
+            "op": "or",
+            "children": [
+              {
+                "type": "stat",
+                "value": "hp<100"
+              },
+              {
+                "type": "stat",
+                "value": "san<100"
+              }
+            ]
+          },
+          {
+            "op": "not",
+            "children": [
+              {
+                "type": "entity_state",
+                "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"logic_deadlock\", \"operator\": \"eq\", \"value\": true}"
+              }
+            ]
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "hp",
+          "delta": 8,
+          "ceiling": 100
+        },
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": 8,
+          "ceiling": 100
+        },
+        {
+          "type": "add_memory",
+          "text": "The party deliberately rested within Li's ward and recovered 8 HP and 8 SAN. The other party was unaffected."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 60,
+      "max_fire_count": 2,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 13,
+      "label": "A warning, not a forced rescue",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "op": "or",
+            "children": [
+              {
+                "type": "stat",
+                "value": "hp<=20"
+              },
+              {
+                "type": "stat",
+                "value": "san<=20"
+              }
+            ]
+          },
+          {
+            "op": "not",
+            "children": [
+              {
+                "type": "scene",
+                "value": "17"
+              }
+            ]
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "inject_text",
+          "text": "Your condition is critical. Jia Chu's rescue instructions advise retreat and a confirmed call for help. No rescue, recovery or relocation has yet occurred."
+        },
+        {
+          "type": "set_flag",
+          "key": "rescue_advised",
+          "value": "true"
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 14,
+      "label": "A confirmed public breach",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "ai",
+            "value": "The confirmed current location is crowded HB or Central, and the committed current scene explicitly records the protagonist actually casting visible magic in front of ordinary citizens there. Discussion, a proposed action, quoted lore, private chat and an unconfirmed candidate do not count."
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+              "state_key": "exposed",
+              "value": true,
+              "visibility": "public"
+            }
+          ]
+        },
+        {
+          "type": "set_flag",
+          "key": "treaty_alarm",
+          "value": "raised"
+        },
+        {
+          "type": "mod_npc",
+          "entity_uid": "ent_31743a29b4e88d923094bf08ba61ff6a",
+          "field": "emotion_fear",
+          "delta": 15
+        },
+        {
+          "type": "inject_text",
+          "text": "TREATY ALARM: a confirmed public breach has been recorded. Liu Jiao warns you to seek cover. Pursuit must be resolved through subsequent validated actions, not automatic off-screen death."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 15,
+      "label": "Safehouse mirror \u2014 optional soft suggestion",
+      "target_node_id": 23,
+      "mode": "soft",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "17"
+          },
+          {
+            "type": "item",
+            "value": "Mirror invitation"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "add_memory",
+          "text": "The mirror invitation was noticed inside the safehouse; it may be declined."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 16,
+      "label": "Record the mirror without inventing its origin",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "23"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "add_memory",
+          "text": "The antique mirror briefly reflected an unidentified shoreline. Li's home plane remains unknown."
+        },
+        {
+          "type": "inject_text",
+          "text": "The observation is recorded. The mirror's destination remains unconfirmed."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 17,
+      "label": "Campus Watch files a scoped report",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "27"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_efefb5b01cc65a722277e0070565d514",
+              "state_key": "watch_reported",
+              "value": true,
+              "visibility": "team:2"
+            }
+          ]
+        },
+        {
+          "type": "add_memory",
+          "text": "Campus Watch confirmed that the safehouse ward and dispatch link are functioning. This does not reveal the field party's private conversations."
+        }
+      ],
+      "timeline_id": 2,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 18,
+      "label": "Explicitly drink the one-use tonic",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "item",
+            "value": "Calming tonic"
+          },
+          {
+            "type": "ai",
+            "value": "The committed scene explicitly records the protagonist choosing to drink the Calming tonic. Carrying it, discussing it or proposing to drink it is not sufficient."
+          },
+          {
+            "op": "not",
+            "children": [
+              {
+                "type": "entity_state",
+                "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"logic_deadlock\", \"operator\": \"eq\", \"value\": true}"
+              }
+            ]
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "Calming tonic"
+        },
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": 5,
+          "ceiling": 100
+        },
+        {
+          "type": "add_memory",
+          "text": "The protagonist explicitly drank the single Calming tonic: +5 SAN, one tonic consumed."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 19,
+      "label": "Grade-three warning at the laboratory",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "22"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "inject_text",
+          "text": "The field guide recommends withdrawing and calling Jia Chu or Liu Runpu for grade-three threats. Observation has not defeated the creature or awarded materials."
+        },
+        {
+          "type": "add_lore",
+          "keywords": "laboratory, grade three, rescue",
+          "content": "The laboratory contains an unresolved aether threat. No victory or harvested material has been confirmed."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 20,
+      "label": "Record the alternate maintenance route",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "18"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "add_memory",
+          "text": "The party actually entered Maintenance Route 1855. Discovery alone was not treated as entry."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 21,
+      "label": "Retire the welcome desk after awakening",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"awakened\", \"operator\": \"eq\", \"value\": true}"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "entity_script",
+          "entity_uid": "ent_8600ba8da74c26449700e978a097bdc6",
+          "name": "Gao Xing",
+          "action": "leave"
+        },
+        {
+          "type": "mod_npc",
+          "entity_uid": "ent_8600ba8da74c26449700e978a097bdc6",
+          "field": "memory_add",
+          "value": "The protagonist completed the first transfer. I left the HB welcome desk to erase its traces."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        4
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 22,
+      "label": "Optional live generated epilogue",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "23"
+          },
+          {
+            "type": "item",
+            "value": "GM epilogue permit"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "remove",
+          "item": "GM epilogue permit"
+        },
+        {
+          "type": "gen_node",
+          "mode": "soft",
+          "prompt": "Write a short English optional epilogue inside Li's safehouse after the river intervention. Keep every original ACSSZ character and role unchanged. Show only one ambiguous reflection; do not establish Li's home plane, new powers, a culprit or new committed world facts. Give an ordinary way to close the mirror."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        16
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 23,
+      "label": "Authorized core elevator credential",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "25"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"knows_eth\", \"operator\": \"eq\", \"value\": true}"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Abyss Geek key"
+        },
+        {
+          "type": "inject_text",
+          "text": "The isolated terminal verifies the recorded authorized calibration and releases one Abyss Geek key for the core elevator. The door is still locked until you use it through the map."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        6
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 24,
+      "label": "Recover an offline computation core",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "28"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"knows_eth\", \"operator\": \"eq\", \"value\": true}"
+          },
+          {
+            "type": "item",
+            "value": "Treaty copy"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Advanced computation core"
+        },
+        {
+          "type": "add_memory",
+          "text": "An authorized comparison of the discarded record identified one usable offline Advanced computation core; the ventilation shaft remains separately locked."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        3,
+        6
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 25,
+      "label": "A living token at the temple perimeter",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "scene",
+            "value": "21"
+          },
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"knows_uzh\", \"operator\": \"eq\", \"value\": true}"
+          },
+          {
+            "type": "item",
+            "value": "Treaty copy"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_inventory",
+          "target": "PC",
+          "op": "add",
+          "item": "Living bone token"
+        },
+        {
+          "type": "inject_text",
+          "text": "The pre-authorized ritual tray accepts the documented resonance and releases one Living bone token. Possessing it has not opened or entered the laboratory."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        3,
+        7
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    },
+    {
+      "id": 26,
+      "label": "The forbidden view \u2014 explicit confirmed intent only",
+      "target_node_id": 0,
+      "mode": "passive",
+      "conditions": {
+        "op": "and",
+        "children": [
+          {
+            "type": "entity_state",
+            "value": "{\"entity_uid\": \"ent_843710d8f9fb83673b0ecae7816615af\", \"state_key\": \"awakened\", \"operator\": \"eq\", \"value\": true}"
+          },
+          {
+            "type": "ai",
+            "value": "The confirmed current location is the Folded Carriage during the 114-second crossing, and the committed current scene explicitly records the protagonist deliberately looking beyond the blinds AND analyzing the exposed world-code. Reading a warning, viewing a map, discussing a hypothetical act, accidental impressions and an unconfirmed proposed action do not count."
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "mod_stat",
+          "target": "PC",
+          "attr": "san",
+          "delta": -100
+        },
+        {
+          "type": "set_state",
+          "changes": [
+            {
+              "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+              "state_key": "logic_deadlock",
+              "value": true
+            }
+          ]
+        },
+        {
+          "type": "set_flag",
+          "key": "catastrophic_fold_failure",
+          "value": "true"
+        },
+        {
+          "type": "add_memory",
+          "text": "The protagonist deliberately analyzed the forbidden view during the crossing. SAN collapsed and irreversible logic deadlock was confirmed. Ordinary rest or tonic cannot undo it."
+        },
+        {
+          "type": "inject_text",
+          "text": "CATASTROPHIC CONSEQUENCE: the forbidden analysis empties your SAN and records irreversible logic deadlock. This is not triggered by reading this warning."
+        }
+      ],
+      "timeline_id": 1,
+      "prerequisite_trigger_ids": [
+        4
+      ],
+      "exclude_trigger_ids": [],
+      "cooldown": 0,
+      "max_fire_count": 1,
+      "fired": 0,
+      "fire_count": 0,
+      "last_fired_at": 0
+    }
+  ],
+  "timelines": [
+    {
+      "id": 1,
+      "label": "Field Arrival",
+      "color": "#5b9cf5",
+      "current_node_id": 1,
+      "current_room_id": 101,
+      "char_ids": "1",
+      "status": "active",
+      "game_tick": 0,
+      "memory": "The Protagonist arrived at HB. Orientation has not yet been accepted."
+    },
+    {
+      "id": 2,
+      "label": "Campus Watch",
+      "color": "#4fc98a",
+      "current_node_id": 27,
+      "current_room_id": 117,
+      "char_ids": "2",
+      "status": "active",
+      "game_tick": 0,
+      "memory": "The Second Investigator is at the safehouse dispatch desk. No private field-party dialogue is known."
+    }
+  ],
+  "world_entities": [
+    {
+      "id": 1,
+      "uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "name": "Protagonist",
+      "entity_type": "pc",
+      "location": "HB \u2014 Great Clock",
+      "room_id": 101,
+      "status": "active",
+      "aliases": "[]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"A newly arrived student. Ask rather than assume their name, identity or magical allegiance.\", \"emotion\": {}, \"memory\": []}"
+    },
+    {
+      "id": 2,
+      "uid": "ent_efefb5b01cc65a722277e0070565d514",
+      "name": "Second Investigator",
+      "entity_type": "pc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"An optional second player character assigned to Campus Watch; not a replacement for any source character.\", \"emotion\": {}, \"memory\": []}"
+    },
+    {
+      "id": 3,
+      "uid": "ent_0593b575038d1fc6e2cb45bc5ee64b17",
+      "name": "Li",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Founder and planar master. A former ETH student and ACSSZ co-founder who belongs to neither magical faction. His origins remain unknown. He created the neutral wards of the apartment at Freiestrasse 14. Do not reveal his home plane as established fact.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 4,
+      "uid": "ent_7b52f3aa6196f12b6424c260624ecb0b",
+      "name": "Hou Jiale",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u4faf\\u4f73\\u4e50\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"President and supreme arbitrator. Coordinates ACSSZ survival strategy and arbitrates difficult decisions under the treaty. Leads the presidium without surrendering its neutrality.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 5,
+      "uid": "ent_7faa8021f4ed5689c81cead4f9d8c8dd",
+      "name": "Xu Sijie",
+      "entity_type": "npc",
+      "location": "River Archive",
+      "room_id": 118,
+      "status": "active",
+      "aliases": "[\"\\u5f90\\u601d\\u5a55\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Vice president. Supports Hou Jiale in maintaining the underground network and its fragile peace. In this adventure, supervises the controlled vitality demonstration and records its cost.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 6,
+      "uid": "ent_98688ff6767435cb04f9ea4dab5fce59",
+      "name": "Yu Zhihe",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u4e8e\\u4e4b\\u8d6b\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Vice president. Supports Hou Jiale in maintaining the underground network and its fragile peace. Coordinates the safehouse watch in this adventure.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 7,
+      "uid": "ent_a7e5eb274699a28cd918b7b67f834e8b",
+      "name": "Zhao Yifei",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u8d75\\u9038\\u98de\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Secretary-general and confidential dispatcher. Runs confidential dispatch for the presidium. Receives reports from both field parties and keeps requests attributable to their actual source.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 8,
+      "uid": "ent_8600ba8da74c26449700e978a097bdc6",
+      "name": "Gao Xing",
+      "entity_type": "npc",
+      "location": "HB \u2014 Great Clock",
+      "room_id": 101,
+      "status": "active",
+      "aliases": "[\"\\u9ad8\\u5174\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Head of the Secretariat / Privy Council. Uses orientation and newcomer support as cover for guiding new awakeners, erasing magical traces and protecting mundane memories. Welcomes the protagonist at HB.\", \"emotion\": {\"trust\": 15, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 9,
+      "uid": "ent_87541e24beca274e0955be582e276c7c",
+      "name": "Jia Weimeng",
+      "entity_type": "npc",
+      "location": "Seal Chamber",
+      "room_id": 119,
+      "status": "active",
+      "aliases": "[\"\\u8d3e\\u7ef4\\u76df\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Head of Public Relations / Aether Negotiation Bureau. Handles dangerous diplomacy with the two universities and contains aether incidents. Can broker the neutral river-seal agreement, but cannot promise consent from an absent faction.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 10,
+      "uid": "ent_31743a29b4e88d923094bf08ba61ff6a",
+      "name": "Liu Jiao",
+      "entity_type": "npc",
+      "location": "Central",
+      "room_id": 104,
+      "status": "active",
+      "aliases": "[\"\\u5218\\u5a07\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Public Relations deputy. Assists Jia Weimeng with faction diplomacy and public-safety cover. Knows which apparent tourists are watching Central.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 11,
+      "uid": "ent_ef2bdd123f0bc2ee5d09af756bedda6d",
+      "name": "Zhang Dingyuan",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u5f20\\u4e01\\u5143\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Head of Corporate Relations / underground supplies. Organizes sponsorship as cover for acquiring and allocating scarce restoration supplies and magical materials. Keeps a strict inventory.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 12,
+      "uid": "ent_c904306637e0371196092a8ec9f13682",
+      "name": "Chen Yuyang",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u9648\\u94b0\\u9633\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Corporate Relations deputy. Assists Zhang Dingyuan with cross-faction supplies. Provides one documented calming tonic instead of unlimited free healing.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 13,
+      "uid": "ent_389c2c537561be03cb33ff58782dc858",
+      "name": "Jia Chu",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u8d3e\\u695a\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Head of Culture and Sports / tactical rescue. Converts public events into defensive rituals and coordinates extraction from dangerous magical areas. Does not teleport teams through locked passages.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 14,
+      "uid": "ent_5be16b61ebfe1e01ae8cd22c8d066b68",
+      "name": "Liu Runpu",
+      "entity_type": "npc",
+      "location": "Li's Home",
+      "room_id": 117,
+      "status": "active",
+      "aliases": "[\"\\u5218\\u6da6\\u749e\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Culture and Sports deputy. Assists Jia Chu with group defense and tactical rescue under ordinary crowd cover.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 15,
+      "uid": "ent_0ffe6c1c17de1bc4b8b99c138704d639",
+      "name": "Zhang Xindi",
+      "entity_type": "npc",
+      "location": "Central",
+      "room_id": 104,
+      "status": "active",
+      "aliases": "[\"\\u5f20\\u5fc3\\u7b1b\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Head of Publicity / Illusion Weaving Bureau. Uses media cover and cognitive interference to disguise supernatural incidents as campus activities or natural phenomena.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 16,
+      "uid": "ent_4c50bf8f0410c094c976b622315017b3",
+      "name": "Huang Sice",
+      "entity_type": "npc",
+      "location": "Central",
+      "room_id": 104,
+      "status": "active",
+      "aliases": "[\"\\u9ec4\\u601d\\u7b56\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Publicity deputy. Assists Zhang Xindi with illusion weaving and public explanations. Distinguishes an approved cover story from a confirmed world fact.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 17,
+      "uid": "ent_130cd0e1fc02868ecfb05516bb4692bf",
+      "name": "Liu Zisen",
+      "entity_type": "npc",
+      "location": "ETH Main Hall",
+      "room_id": 108,
+      "status": "active",
+      "aliases": "[\"\\u5218\\u5b50\\u68ee\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Head of Information / cyber-ward infrastructure. Builds digital wards, communications and counter-tracking defenses. In this adventure, teaches the authorized geometric calibration and documents its SAN cost.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 18,
+      "uid": "ent_1836c46eb58f6d4239e1fa9355ee0c73",
+      "name": "Shang Haoliang",
+      "entity_type": "npc",
+      "location": "ETH Main Hall",
+      "room_id": 108,
+      "status": "active",
+      "aliases": "[\"\\u5546\\u6d69\\u826f\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"Information deputy. Assists Liu Zisen with communications, digital wards and counter-tracking. Can compare the two field parties' authenticated observations.\", \"emotion\": {\"trust\": 0, \"fear\": 0, \"irritation\": 0}, \"memory\": []}"
+    },
+    {
+      "id": 30,
+      "uid": "ent_ac0408073c9635dd4bdbcc42b5754765",
+      "name": "River Seal",
+      "entity_type": "event",
+      "location": "Seal Chamber",
+      "room_id": 119,
+      "status": "active",
+      "aliases": "[\"Limmat seal\"]",
+      "visibility": "public",
+      "state_desc": "{\"desc\": \"A shared two-channel river seal, initially misaligned. Consult its seal_outcome state for the committed current outcome.\", \"emotion\": {}, \"memory\": []}"
+    }
+  ],
+  "state_definitions": [
+    {
+      "uid": "state_33a3d766e0eca307480f26162d858065",
+      "key": "awakened",
+      "display_name": "Awakened",
+      "description": "Whether the protagonist has completed the first controlled folded transfer.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_4fabfec8aef9562e3225223fe3649484",
+      "key": "knows_eth",
+      "display_name": "Geometric evidence",
+      "description": "Whether the authorized calibration has been completed.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_7d02691822487857f9d8db0eabae4145",
+      "key": "knows_uzh",
+      "display_name": "Living evidence",
+      "description": "Whether the controlled resonance exercise has been completed.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_e81fd71413be37f0ac955f3ef9cf9b9d",
+      "key": "treaty_recovered",
+      "display_name": "Treaty appendix recovered",
+      "description": "Whether the protagonist recovered the archive copy.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_d715627f39ea8558d304ad08b6382785",
+      "key": "exposed",
+      "display_name": "Public exposure",
+      "description": "Whether a confirmed public magic breach has been detected.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_b5fabec15609d1743774e712fc91d4bf",
+      "key": "seal_outcome",
+      "display_name": "River seal outcome",
+      "description": "The single committed outcome of the river intervention.",
+      "value_type": "enum",
+      "enum_values": "[\"unresolved\", \"eth\", \"uzh\", \"neutral\"]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_c7cca57dc762767fa52cd46a9db0d80f",
+      "key": "watch_reported",
+      "display_name": "Watch report confirmed",
+      "description": "Whether Campus Watch has filed its initial independent report.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "",
+      "aliases": "[]",
+      "source_event_id": null
+    },
+    {
+      "uid": "state_1623ff0ac1aae96520ddd1639548df2b",
+      "key": "logic_deadlock",
+      "display_name": "Irreversible logic deadlock",
+      "description": "Whether the protagonist explicitly analyzed the forbidden view during the fold. Ordinary rest and tonic cannot reverse this state.",
+      "value_type": "boolean",
+      "enum_values": "[]",
+      "min_value": null,
+      "max_value": null,
+      "effects": "Blocks ordinary safehouse and tonic recovery.",
+      "aliases": "[]",
+      "source_event_id": null
+    }
+  ],
+  "entity_states": [
+    {
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "state_uid": "state_33a3d766e0eca307480f26162d858065",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "public",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "state_uid": "state_4fabfec8aef9562e3225223fe3649484",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "public",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "state_uid": "state_7d02691822487857f9d8db0eabae4145",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "public",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "state_uid": "state_e81fd71413be37f0ac955f3ef9cf9b9d",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "public",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "state_uid": "state_d715627f39ea8558d304ad08b6382785",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "public",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_ac0408073c9635dd4bdbcc42b5754765",
+      "state_uid": "state_b5fabec15609d1743774e712fc91d4bf",
+      "target_uid": "",
+      "value": "\"unresolved\"",
+      "visibility": "public",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_efefb5b01cc65a722277e0070565d514",
+      "state_uid": "state_c7cca57dc762767fa52cd46a9db0d80f",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "team:2",
+      "version": 1
+    },
+    {
+      "entity_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "state_uid": "state_1623ff0ac1aae96520ddd1639548df2b",
+      "target_uid": "",
+      "value": "false",
+      "visibility": "public",
+      "version": 1
+    }
+  ],
+  "entity_memories": [
+    {
+      "id": 1,
+      "entity_uid": "ent_8600ba8da74c26449700e978a097bdc6",
+      "content": "I am to meet the newly arrived protagonist beneath the HB clock.",
+      "visibility": "entity:ent_8600ba8da74c26449700e978a097bdc6",
+      "timeline_id": null
+    },
+    {
+      "id": 2,
+      "entity_uid": "ent_a7e5eb274699a28cd918b7b67f834e8b",
+      "content": "Campus Watch must confirm its own report before dispatch treats it as fact.",
+      "visibility": "team:2",
+      "timeline_id": 2
+    }
+  ],
+  "entity_relations": [
+    {
+      "uid": "rel_b86228724b71e478ceae7241e95cb71f",
+      "subject_uid": "ent_8600ba8da74c26449700e978a097bdc6",
+      "predicate": "orientation_contact_for",
+      "object_uid": "ent_843710d8f9fb83673b0ecae7816615af",
+      "description": "Assigned orientation contact; no magical allegiance implied.",
+      "visibility": "public"
+    }
+  ],
+  "scene_locations": [
+    {
+      "node_id": 1,
+      "room_id": 101
+    },
+    {
+      "node_id": 2,
+      "room_id": 101
+    },
+    {
+      "node_id": 3,
+      "room_id": 102
+    },
+    {
+      "node_id": 4,
+      "room_id": 104
+    },
+    {
+      "node_id": 5,
+      "room_id": 105
+    },
+    {
+      "node_id": 6,
+      "room_id": 105
+    },
+    {
+      "node_id": 7,
+      "room_id": 106
+    },
+    {
+      "node_id": 8,
+      "room_id": 109
+    },
+    {
+      "node_id": 9,
+      "room_id": 108
+    },
+    {
+      "node_id": 10,
+      "room_id": 118
+    },
+    {
+      "node_id": 11,
+      "room_id": 107
+    },
+    {
+      "node_id": 12,
+      "room_id": 118
+    },
+    {
+      "node_id": 13,
+      "room_id": 119
+    },
+    {
+      "node_id": 14,
+      "room_id": 119
+    },
+    {
+      "node_id": 15,
+      "room_id": 119
+    },
+    {
+      "node_id": 16,
+      "room_id": 119
+    },
+    {
+      "node_id": 17,
+      "room_id": 117
+    },
+    {
+      "node_id": 18,
+      "room_id": 103
+    },
+    {
+      "node_id": 19,
+      "room_id": 110
+    },
+    {
+      "node_id": 20,
+      "room_id": 114
+    },
+    {
+      "node_id": 21,
+      "room_id": 115
+    },
+    {
+      "node_id": 22,
+      "room_id": 116
+    },
+    {
+      "node_id": 23,
+      "room_id": 117
+    },
+    {
+      "node_id": 24,
+      "room_id": 113
+    },
+    {
+      "node_id": 25,
+      "room_id": 111
+    },
+    {
+      "node_id": 27,
+      "room_id": 117
+    },
+    {
+      "node_id": 28,
+      "room_id": 112
+    }
+  ],
+  "game_flags": [
+    {
+      "key": "chapter",
+      "value": "arrival"
+    },
+    {
+      "key": "ending",
+      "value": "unresolved"
+    }
+  ],
+  "rag_library": [
+    {
+      "title": "ACSSZ: people and responsibilities",
+      "source": "01_acssz_and_people.md",
+      "hidden": 0,
+      "visibility": "public"
+    },
+    {
+      "title": "Die ETH and Die UZH: the two costs",
+      "source": "02_two_traditions.md",
+      "hidden": 0,
+      "visibility": "public"
+    },
+    {
+      "title": "The 1855 Limmat Treaty",
+      "source": "03_treaty_1855.md",
+      "hidden": 1,
+      "visibility": "public"
+    },
+    {
+      "title": "Li's Home: recovery and neutrality",
+      "source": "04_lis_home.md",
+      "hidden": 0,
+      "visibility": "public"
+    },
+    {
+      "title": "Aether aberrations and ecological warnings",
+      "source": "05_aberration_field_guide.md",
+      "hidden": 0,
+      "visibility": "public"
+    },
+    {
+      "title": "Field assignment: a river running twice",
+      "source": "06_field_objective.md",
+      "hidden": 0,
+      "visibility": "public"
+    },
+    {
+      "title": "Polybahn folded-space timetable and riding protocol",
+      "source": "07_polybahn_protocol.md",
+      "hidden": 1,
+      "visibility": "public"
+    },
+    {
+      "title": "Joint river-seal calibration evidence",
+      "source": "08_river_seal_evidence.md",
+      "hidden": 1,
+      "visibility": "public"
+    },
+    {
+      "title": "GM only: mystery boundaries and mirror hook",
+      "source": "09_gm_mirror_and_mystery.md",
+      "hidden": 1,
+      "visibility": "gm"
+    }
+  ],
+  "memory_l1": [],
+  "pending_effects": [],
+  "npc_chat_logs": [],
+  "starting_node_id": 1
+}

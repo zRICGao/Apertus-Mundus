@@ -1,0 +1,33 @@
+{
+  "name": "Blank Campaign",
+  "description": "A clean English campaign starter with one editable scene and no preloaded setting.",
+  "worldview": "",
+  "session_memory": "",
+  "characters": [],
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Opening Scene",
+      "summary": "",
+      "content": "",
+      "expanded_content": "",
+      "is_draft": 0
+    }
+  ],
+  "options": [],
+  "lorebook": [],
+  "triggers": [],
+  "timelines": [],
+  "world_entities": [],
+  "state_definitions": [],
+  "entity_states": [],
+  "entity_memories": [],
+  "entity_relations": [],
+  "scene_locations": [],
+  "game_flags": [],
+  "rag_library": [],
+  "memory_l1": [],
+  "pending_effects": [],
+  "npc_chat_logs": [],
+  "starting_node_id": 1
+}

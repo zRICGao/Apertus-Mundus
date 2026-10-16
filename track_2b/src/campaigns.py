@@ -1,10 +1,30 @@
 """Versioned saves preserve identities and every authoritative table."""
 import json
+import shutil
 from pathlib import Path
 from datetime import datetime
 
 from database import atomic, connect_db
 from world import SNAPSHOT_TABLES, snapshot, restore, encode
+
+
+def install_bundled_campaigns(base_dir, campaigns_dir):
+    """Copy missing example folders into the save picker without replacing user saves."""
+    base = Path(base_dir)
+    source = base / 'data' / 'scenarios'
+    if not source.is_dir():
+        source = base.parent / 'data' / 'scenarios'
+    if not source.is_dir():
+        return []
+    destination = Path(campaigns_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    installed = []
+    for folder in sorted(source.iterdir()):
+        target = destination / folder.name
+        if folder.is_dir() and is_campaign_file(folder / 'campaign.json') and not target.exists():
+            shutil.copytree(folder, target)
+            installed.append(folder.name)
+    return installed
 
 
 def _records(config, key):
@@ -60,9 +80,11 @@ def load_save(db_file, base_dir, filename, campaigns_dir=None):
                 data = {table: [] for table in SNAPSHOT_TABLES}
                 data["system_state"] = [{"key": "worldview", "value": config.get("worldview", "[Default Worldview]")},
                     {"key": "session_memory", "value": config.get("session_memory", "")},
-                    {"key": "player_current_scene_id", "value": ""}]
+                    {"key": "player_current_scene_id", "value": str(config.get("starting_node_id", ""))}]
                 for table in ("characters", "nodes", "options", "lorebook", "triggers", "timelines", "world_entities",
-                              "memory_l1", "pending_effects", "npc_chat_logs", "map_rooms", "map_edges"):
+                              "memory_l1", "pending_effects", "npc_chat_logs", "map_rooms", "map_edges",
+                              "game_flags", "state_definitions", "entity_states", "entity_memories",
+                              "entity_relations", "scene_locations"):
                     data[table] = _records(config, table)
                 for i, row in enumerate(data["characters"], 1):
                     row.setdefault("id", i)
@@ -88,8 +110,15 @@ def load_save(db_file, base_dir, filename, campaigns_dir=None):
                 from rag import chunk_text
                 chunk_id = 1
                 for doc_id, document in enumerate(raw_documents, 1):
+                    text = document.get("text", "")
+                    if folder and "text" not in document and document.get("source"):
+                        knowledge = (folder / "knowledge").resolve()
+                        source = (knowledge / document["source"]).resolve()
+                        if not source.is_relative_to(knowledge) or source.suffix.lower() not in {".txt", ".md"}:
+                            raise ValueError("Knowledge sources must be text files within the campaign knowledge directory")
+                        text = source.read_text(encoding="utf-8")
                     chunks = document.get("chunks") or [{"index": i, "text": chunk, "embedding": "[]"}
-                        for i, chunk in enumerate(chunk_text(document.get("text", "")))]
+                        for i, chunk in enumerate(chunk_text(text))]
                     data["rag_documents"].append({"id": doc_id, "title": document.get("title", "Untitled"),
                         "source": document.get("source", ""), "chunk_size": len(chunks), "hidden": document.get("hidden", 0),
                         "visibility": document.get("visibility", "public"),"embedding_model":document.get('embedding_model','')})

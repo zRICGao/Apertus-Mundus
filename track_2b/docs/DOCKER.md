@@ -79,14 +79,18 @@ docker image ls
 ```
 
 Submit the source repository URL. Docker downloads weights during the build;
-weights belong outside Git and `data/`. Public data contains only the original
-fictional demo and stays well below 100 MB.
+weights belong outside Git and `data/`. Bundled data includes the original
+fictional lighthouse demo, an English Limmat adventure and a blank starter,
+and stays well below 100 MB.
 
 ## Data and settings
 
 The named `app-data` volume stores the database, campaigns, exported saves, settings
 and reports. On the first empty startup, the app loads the Mist Harbor Lighthouse
 demo. Restarting preserves the existing world. Exported saves can be loaded again.
+The [Limmat example and blank campaign](../data/scenarios/README.md) are installed
+as selectable folders on startup without replacing an existing campaign folder
+or the active world. Existing modified examples are preserved.
 
 Configuration precedence is process environment > persisted settings > project
 `.env` > defaults. Within one layer, `LLM_*` takes precedence over the corresponding

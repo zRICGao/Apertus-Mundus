@@ -411,7 +411,7 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
     """
     Action types:
       set_flag      — {key, value}: write to the game_flags table
-      mod_stat      — {target, attr, delta}: modify character hp/san; target="PC" applies to all player characters
+      mod_stat      — {target, attr, delta, ceiling?}: modify hp/san; an optional ceiling caps recovery
       add_memory    — {text}: append to session memory
       fire_trigger  — {id}: activate another trigger without recursively executing its actions to prevent cycles
       inject_text   — {node_id?, text}：append narrative text to a node (node_id=0 → current scene)
@@ -467,15 +467,23 @@ def _execute_actions(actions_raw: str, conn, trigger_id: int,
                 attr   = str(act.get("attr",   "hp")).strip().lower()
                 delta  = int(act.get("delta",  0))
                 if attr in ("hp", "san") and delta != 0:
+                    expression = f"MAX(0,{attr}+?)"
+                    parameters = [delta]
+                    if act.get('ceiling') is not None:
+                        ceiling = act['ceiling']
+                        if type(ceiling) is not int or ceiling < 0:
+                            raise ValueError('Stat ceiling must be a nonnegative integer')
+                        expression = f"MIN(?,{expression})"
+                        parameters.insert(0, ceiling)
                     if target.upper() == "PC":
                         targets=[r['id'] for r in conn.execute("SELECT id FROM characters WHERE role='PC'")
                                  if members is None or r['id'] in members]
                         for char_id in targets:
-                            conn.execute(f"UPDATE characters SET {attr}=MAX(0,{attr}+?) WHERE id=?",(delta,char_id))
+                            conn.execute(f"UPDATE characters SET {attr}={expression} WHERE id=?",(*parameters,char_id))
                     else:
                         conn.execute(
-                            f"UPDATE characters SET {attr}=MAX(0,{attr}+?) WHERE entity_uid=?",
-                            (delta, target)
+                            f"UPDATE characters SET {attr}={expression} WHERE entity_uid=?",
+                            (*parameters, target)
                         )
                     _log.info("Trigger %d mod_stat: [%s] %s %+d", trigger_id, target, attr, delta)
                     label = "All player characters" if target.upper() == "PC" else target

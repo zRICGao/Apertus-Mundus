@@ -10,6 +10,7 @@ COPY src/*.py src/*.html src/*.css src/*.js ./
 COPY src/frontend_vendor/ ./frontend_vendor/
 COPY src/scripts/ ./scripts/
 COPY data/demo/ ./data/demo/
+COPY data/scenarios/ ./data/scenarios/
 USER appuser
 EXPOSE 8000
 CMD ["python", "scripts/container_start.py"]

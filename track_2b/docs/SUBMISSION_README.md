@@ -45,7 +45,9 @@ and remaining gaps. Run the included summary-boundary regressions from the repos
 root with `python -m unittest discover -s track_2b/tests -v`.
 Run the English frontend regressions with `node --test track_2b/tests/test_english_frontend.cjs`.
 
-The `data/` folder contains only the original CC0 fictional demo. Private campaign
-data and credentials are excluded. Model licences are retained with the downloaded
+The `data/` folder contains the original CC0 lighthouse demo and the
+[English Limmat example and blank starter](data/scenarios/README.md). The Limmat
+adaptation retains the characters and roles from the user-supplied story.
+Private saves and credentials are excluded. Model licences are retained with the downloaded
 weights. The source layout follows the
 [official Track 2b template](https://github.com/HackApertus/project-template/tree/main/track_2b).

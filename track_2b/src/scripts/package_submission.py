@@ -40,6 +40,9 @@ def package(destination):
     for file in sorted((PROJECT / 'data' / 'demo').rglob('*')):
         if file.is_file():
             copy(file, track / 'data' / 'demo' / file.relative_to(PROJECT / 'data' / 'demo'))
+    for file in sorted((PROJECT / 'data' / 'scenarios').rglob('*')):
+        if file.is_file():
+            copy(file, track / 'data' / 'scenarios' / file.relative_to(PROJECT / 'data' / 'scenarios'))
     if sum(file.stat().st_size for file in (track / 'data').rglob('*') if file.is_file()) > 100_000_000:
         raise ValueError('Submission data exceeds 100 MB.')
     for name in ('compose.yaml', 'compose.local.yaml', 'compose.helpers-gpu.yaml', '.env.docker.example'):
@@ -57,7 +60,8 @@ def package(destination):
     (track / '.dockerignore').write_text(
         '*\n!Dockerfile\n!src/\n!src/*.py\n!src/*.html\n!src/*.css\n!src/*.js\n!src/requirements.txt\n'
         '!src/frontend_vendor/\n!src/frontend_vendor/**\n!src/scripts/\n!src/scripts/*.py\n'
-        '!data/\n!data/demo/\n!data/demo/**\n!helpers/\n!helpers/**\n**/__pycache__\n**/*.pyc\n', encoding='utf-8')
+        '!data/\n!data/demo/\n!data/demo/**\n!data/scenarios/\n!data/scenarios/**\n'
+        '!helpers/\n!helpers/**\n**/__pycache__\n**/*.pyc\n', encoding='utf-8')
     makefile = (PROJECT / 'Makefile').read_text(encoding='utf-8')
     if SOURCE == PROJECT:
         makefile = makefile.replace('$(PYTHON) scripts/package_submission.py', '$(PYTHON) src/scripts/package_submission.py')

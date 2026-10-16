@@ -6,6 +6,31 @@ this record. The submission remains under `track_2b/`; the root Makefile forward
 
 ## Verified
 
+### Limmat example and blank starter
+
+- Added Limmat — The Forbidden River and Blank Campaign under `data/scenarios/`.
+  The Limmat adaptation preserves all 16 named people and their original roles,
+  with romanized display names and original-name aliases. It includes 27 scenes,
+  19 locations, 22 passages, 26 triggers, eight typed state definitions and nine
+  editable knowledge sources. Three authored endings exclude one another.
+- Startup installs missing example folders without overwriting existing saves or
+  changing the active world. Docker inputs and submission exports include both
+  examples. The blank starter resets previous scenario data and leaves one empty
+  editable opening scene.
+- Twenty-two included Python tests pass (the full 21-test run plus the added
+  scoped Campus Watch check), as do the three English frontend tests. All 259
+  existing offline regressions pass against the updated isolated runtime copy.
+  The generated 112-file manifest validates, and the exported package passes the
+  isolated mocked-inference deployment smoke flow including fresh-process recovery.
+- Checks cover every authored ending, exact costs, repeat commits, missing keys,
+  conditional disclosure, map discovery versus entry, scoped hard navigation,
+  capped recovery and cooldown, optional key sources, uncertain and confirmed
+  semantic rules, irreversible deadlock, opt-in generation failure rollback,
+  import/export, original-name aliases and non-overwriting installation.
+- Real-model judgement/prose and interactive two-device behavior were not measured
+  by these offline tests. The GM guide identifies the model-dependent rules and
+  keeps the fictional timetable separate from real-time engine cooldowns.
+
 ### English language review
 
 - Interface text, server messages, active generation prompts, deployment documentation
@@ -47,7 +72,7 @@ this record. The submission remains under `track_2b/`; the root Makefile forward
   pages plus one reference page; changed pages were rendered and visually checked.
 - Report metrics sum correctly. The package includes its editable report, PDF,
   generator, aggregate evidence ledger and included boundary tests.
-- Public English demo data totals 3,659 bytes, below the 100 MB limit. The source audit finds
+- The lighthouse demo data totals 3,659 bytes, below the 100 MB limit. The source audit finds
   no runtime databases, private campaign directories, credential files or matches
   for the checked credential-token/private-key patterns.
 

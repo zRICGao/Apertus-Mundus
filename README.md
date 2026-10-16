@@ -35,13 +35,16 @@ to your Apertus endpoint. Local supporting models provide embeddings, reranking
 and typed decisions; their roles are documented in the report. Build preparation
 requires network access. Fully disconnected operation has not been validated.
 
-The interface, bundled fictional demo and project documentation are in English. Public data is an original CC0 demo and stays
-below 100 MB; credentials, production saves and private campaigns are excluded.
+The interface, bundled fictional scenarios and project documentation are in English.
+Data includes the original CC0 lighthouse demo, an adaptation of the supplied Limmat
+story and a blank starter. It stays below 100 MB; credentials and production saves
+are excluded.
 
 ## Documentation and submission status
 
 - [Application README](track_2b/README.md)
 - [Deployment guide](track_2b/docs/DOCKER.md)
+- [English example and blank campaign](track_2b/data/scenarios/README.md)
 - [Technical report source](track_2b/technical_report.md)
 - [Technical report PDF](track_2b/Apertus_Mundus_Report.pdf)
 

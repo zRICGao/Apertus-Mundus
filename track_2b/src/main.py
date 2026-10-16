@@ -404,6 +404,8 @@ def init_db():
     conn.close()
 
 init_db()
+from campaigns import install_bundled_campaigns
+install_bundled_campaigns(BASE_DIR, CAMPAIGNS_DIR)
 from world import init_world, refresh_wiki, snapshot, restore, record_event, link_character, state_token
 from encyclopedia_api import router as encyclopedia_router
 app.include_router(encyclopedia_router)
@@ -539,6 +541,9 @@ def list_campaigns():
         for d in sorted(os.listdir(CAMPAIGNS_DIR)):
             folder = os.path.join(CAMPAIGNS_DIR, d)
             if os.path.isdir(folder) and is_campaign_file(os.path.join(folder, "campaign.json")):
+                with open(os.path.join(folder, "campaign.json"), encoding="utf-8") as campaign_file:
+                    campaign_name = json.load(campaign_file).get("name")
+                display_name = campaign_name.strip() if isinstance(campaign_name, str) and campaign_name.strip() else d
                 has_map = os.path.exists(os.path.join(folder, "map.json"))
                 kb_dir = os.path.join(folder, "knowledge")
                 kb_count = 0
@@ -548,7 +553,7 @@ def list_campaigns():
                         + glob.glob(os.path.join(kb_dir, "*.md"))
                     )
                 results.append({
-                    "name": d, "type": "folder",
+                    "name": display_name, "type": "folder",
                     "path": f"campaigns/{d}",
                     "has_map": has_map,
                     "kb_count": kb_count

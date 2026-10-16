@@ -13,6 +13,8 @@
 !data/
 !data/demo/
 !data/demo/**
+!data/scenarios/
+!data/scenarios/**
 !helpers/
 !helpers/**
 **/__pycache__
