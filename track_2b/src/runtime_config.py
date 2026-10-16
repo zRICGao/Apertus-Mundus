@@ -36,7 +36,14 @@ def load_environment(base_dir, environ=None):
     project_file = Path(base_dir) / '.env'
     persistent_file = Path(process.get('RPG_CONFIG_FILE', str(project_file)))
     merged = {}
-    for path in (project_file, persistent_file):
+    paths = [project_file, persistent_file]
+    # The source-tree desktop launcher lives two levels below the development
+    # .env. Packaged/container installs keep their existing configuration paths.
+    base = Path(base_dir).resolve()
+    if (base.name == 'src' and base.parent.name == 'track_2b'
+            and (base.parent.parent / 'main.py').is_file()):
+        paths.insert(0, base.parent.parent / '.env')
+    for path in paths:
         if path.is_file():
             merged.update(normalize_layer(dotenv_values(path, interpolate=False)))
     merged.update(normalize_layer(process))
