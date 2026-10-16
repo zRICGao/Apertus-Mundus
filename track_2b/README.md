@@ -17,6 +17,11 @@ The workbench brings scene authoring, branching simulation and session managemen
 together. The GM explores possible outcomes and chooses what becomes part of the
 story; confirmed changes carry forward through entities, maps, knowledge and saves.
 
+The UI design draws inspiration from the
+[official Hack Apertus website](https://hackapertus.ch/). Navy navigation, ivory
+reading surfaces and red action accents bring technical clarity to a workbench
+with the character of a narrative atlas.
+
 ## 💡 What It Can Do
 
 - **Branching AI simulation:** Turn a player action into 2–4 candidate outcomes.
