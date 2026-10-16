@@ -58,6 +58,88 @@ with the character of a narrative atlas.
   timelines, maps, memories, knowledge and existing embeddings. Generate incremental
   narrative reports from recorded scenes and download them as Markdown.
 
+## Project Architecture
+
+Apertus Mundus is a Vue browser workbench served by a modular FastAPI application.
+SQLite holds the shared world's state; model services handle generation, typed
+decisions, embeddings and reranking. The diagram shows the logical components of
+the default Docker deployment.
+
+```mermaid
+flowchart TD
+    UI["Browser: GM workbench, device connection, NPC phone"]
+    API["FastAPI: REST endpoints, SSE streams, WebSocket updates"]
+    UI <-->|"HTTP and live updates"| API
+
+    subgraph APP["Application services"]
+        FLOW["Simulation: candidates, review, expansion"]
+        WORLD["World engine: scene commits, entities, teams, maps, triggers"]
+        KNOWLEDGE["Memory, RAG and Encyclopedia"]
+        PROVIDERS["Model providers and decision fallback"]
+    end
+
+    API --> FLOW
+    API --> WORLD
+    API --> KNOWLEDGE
+    FLOW --> PROVIDERS
+    FLOW -->|"Retrieve context"| KNOWLEDGE
+    FLOW -->|"Commit selected branch"| WORLD
+    WORLD -->|"Confirmed events and memories"| KNOWLEDGE
+    PROVIDERS --> APERTUS["Apertus: narrative generation and fallback decisions"]
+    PROVIDERS --> KEV["Local Kev: typed decisions"]
+    KNOWLEDGE --> EMBED["Local BGE-M3: embeddings"]
+    KNOWLEDGE --> RERANK["Local MXBAI: reranking"]
+    KNOWLEDGE --> PROVIDERS
+    WORLD <--> DB[("SQLite: world state, events, knowledge and embeddings")]
+    KNOWLEDGE <--> DB
+    API -->|"Save, load and export"| FILES["Campaign JSON snapshots and Markdown reports"]
+```
+
+### Components and Data Flow
+
+- **Browser interface:** `index.html` and its frontend modules provide the Vue GM
+  workbench. `connect.html` handles device access, and `phone.html` provides NPC
+  conversations. REST carries commands, SSE streams generated text, WebSocket
+  broadcasts player state, and revision polling refreshes connected workbenches.
+- **Simulation and world engine:** `main.py` mounts the API modules.
+  `agent_operations.py` generates candidate summaries; `selected_branches.py`
+  prepares the chosen candidate with NPC and spatial checks. After prose expansion,
+  `scene_service.py` and `engine.py` validate and commit the scene and its effects
+  in a SQLite transaction. Entities, teams, maps and triggers share this world.
+- **Memory and knowledge:** `memory_service.py` manages working and archived
+  memories. `knowledge.py`, `rag.py` and `reranking.py` retrieve scoped context;
+  the Encyclopedia API and Wiki compiler maintain source revisions and derived
+  pages. Knowledge and existing embedding vectors are stored in SQLite.
+- **Model services:** `providers.py` connects to the configured Apertus endpoint
+  and routes typed decisions through the selected provider and fallback chain.
+  Docker Compose runs BGE-M3, MXBAI Rerank Base v2 and Kev as local helper services.
+  The optional local deployment also serves Apertus on an NVIDIA GPU.
+- **Persistence:** `database.py` provides shared SQLite transactions, while
+  `campaigns.py` saves and restores versioned world snapshots. In Docker, the
+  database, campaigns, settings and reports live under `/app/runtime` in the
+  persistent `app-data` volume.
+
+A player action first gathers scene, entity, map and permitted knowledge context.
+The model returns candidate summaries, which remain drafts. Selecting one triggers
+preparation and any required review, followed by streamed narrative expansion.
+The commit then applies the validated world effects and records the event; memory
+maintenance and knowledge compilation run after confirmed changes.
+
+### Repository Layout
+
+```text
+track_2b/
+├── src/                  # Browser UI, FastAPI modules and application scripts
+├── data/                 # Bundled demo, example campaigns and knowledge sources
+├── helpers/              # Local embedding, reranking and decision model services
+├── docs/                 # Deployment, validation and report-generation material
+├── tests/                # Backend and frontend regressions
+├── compose.yaml          # Application and local helper service deployment
+├── compose.local.yaml    # Optional local Apertus GPU deployment
+├── Dockerfile            # Application image
+└── Makefile              # Run, smoke-check and packaging commands
+```
+
 ## ✨ How to Use
 
 ### 1. Load a Campaign
