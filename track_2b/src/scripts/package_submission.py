@@ -26,7 +26,7 @@ def package(destination):
     track = destination / 'track_2b'
     src = track / 'src'
     # Runtime modules and frontend assets only. No broad recursive project copy.
-    for pattern in ('*.py', '*.html', '*.css', '*.js'):
+    for pattern in ('*.py', '*.html', '*.css', '*.js', '*.cmd'):
         for file in sorted(SOURCE.glob(pattern)):
             copy(file, src / file.name)
     copy(SOURCE / 'requirements.txt', src / 'requirements.txt')
