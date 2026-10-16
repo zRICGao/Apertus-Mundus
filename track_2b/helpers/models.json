@@ -1,0 +1,6 @@
+{
+  "embedding": {"repo": "BAAI/bge-m3", "revision": "5617a9f61b028005a4858fdac845db406aefb181"},
+  "reranker": {"repo": "mixedbread-ai/mxbai-rerank-base-v2", "revision": "3ea9d4dffa7d12a4f366be8e275c349de9fc9865"},
+  "kev": {"repo": "jaredpalmer/kev-4b", "revision": "6cfce5c2fa4b4bd64026336ab649c5ca78857d52"},
+  "kev_base": {"repo": "Qwen/Qwen3.5-4B-Base", "revision": "1001bb4d826a52d1f399e183466143f4da7b741b"}
+}

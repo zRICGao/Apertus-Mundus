@@ -1,0 +1,31 @@
+# Optional GPU helper stack; the default make run uses CPU images.
+x-gpu: &gpu
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+services:
+  embedding:
+    build:
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu128
+    environment:
+      HELPER_DEVICE: cuda
+    deploy: *gpu
+  reranker:
+    build:
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu128
+    environment:
+      HELPER_DEVICE: cuda
+    deploy: *gpu
+  kev:
+    build:
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu128
+    environment:
+      HELPER_DEVICE: cuda
+      KEV_DTYPE: bf16
+    deploy: *gpu

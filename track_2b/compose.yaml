@@ -1,0 +1,100 @@
+name: apertus-mundus
+services:
+  app:
+    build: .
+    init: true
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    environment:
+      LLM_NAME: ${LLM_NAME-${APERTUS_MODEL-}}
+      LLM_BASE_URL: ${LLM_BASE_URL-${APERTUS_BASE_URL-}}
+      LLM_API_KEY: ${LLM_API_KEY-${APERTUS_API_KEY-}}
+      DECISION_PROVIDER: ${DECISION_PROVIDER:-kev}
+      DECISION_TIMEOUT: ${DECISION_TIMEOUT:-60}
+      APERTUS_TIMEOUT: ${APERTUS_TIMEOUT:-180}
+      APERTUS_JSON_MODE: ${APERTUS_JSON_MODE:-false}
+      APERTUS_8B_BASE_URL: ${APERTUS_8B_BASE_URL:-}
+      APERTUS_8B_API_KEY: ${APERTUS_8B_API_KEY:-}
+      APERTUS_8B_MODEL: ${APERTUS_8B_MODEL:-swiss-ai/Apertus-v1.5-8B}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      JEV_URL: http://kev:8008/v1/systemone
+      JEV_MODEL: kev-latest
+      EMBEDDING_ENABLED: "true"
+      EMBEDDING_BASE_URL: http://embedding:8008/v1
+      EMBEDDING_API_KEY: local
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      RERANK_ENABLED: "true"
+      RERANK_BASE_URL: http://reranker:8008
+      RERANK_API_KEY: local
+      RERANK_MODEL: mixedbread-ai/mxbai-rerank-base-v2
+      RERANK_TIMEOUT: ${RERANK_TIMEOUT:-30}
+      WIKI_AUTO_SYNTHESIS: ${WIKI_AUTO_SYNTHESIS:-true}
+      RPG_DB_FILE: /app/runtime/rpg_game.db
+      RPG_CAMPAIGNS_DIR: /app/runtime/campaigns
+      RPG_CONFIG_FILE: /app/runtime/settings.env
+      RPG_REPORTS_DIR: /app/runtime/battle_report
+      RPG_ACCESS_MODE: container-local
+    volumes:
+      - app-data:/app/runtime
+    depends_on:
+      embedding:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+      kev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+  embedding:
+    build:
+      context: .
+      dockerfile: helpers/Dockerfile
+      target: embedding
+    init: true
+    environment:
+      HELPER_THREADS: ${HELPER_THREADS:-4}
+      OMP_NUM_THREADS: ${HELPER_THREADS:-4}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 300s
+      retries: 40
+  reranker:
+    build:
+      context: .
+      dockerfile: helpers/Dockerfile
+      target: reranker
+    init: true
+    environment:
+      HELPER_THREADS: ${HELPER_THREADS:-4}
+      OMP_NUM_THREADS: ${HELPER_THREADS:-4}
+      RERANK_MAX_LENGTH: ${RERANK_MAX_LENGTH:-2048}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 300s
+      retries: 40
+  kev:
+    build:
+      context: .
+      dockerfile: helpers/Dockerfile
+      target: kev
+    init: true
+    environment:
+      OMP_NUM_THREADS: ${HELPER_THREADS:-4}
+      MKL_NUM_THREADS: ${HELPER_THREADS:-4}
+      KEV_DTYPE: ${KEV_DTYPE:-fp32}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/v1/models', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 600s
+      retries: 60
+volumes:
+  app-data:

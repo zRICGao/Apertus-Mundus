@@ -1,0 +1,50 @@
+.encyclopedia { width:min(1200px,96vw); height:92vh; padding:0; display:flex; flex-direction:column; overflow:hidden; }
+.encyclopedia header { padding:18px 24px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #42556c; }
+.encyclopedia h2 { margin:0; font:26px Georgia,"Noto Serif SC",serif; }
+.encyclopedia .enc-tools { display:flex; gap:10px; flex-wrap:wrap; padding:14px 24px; align-items:center; }
+.encyclopedia .enc-tools input[type=search] { flex:1; min-width:160px; }
+.encyclopedia .enc-tools .inp { width:auto; }
+.encyclopedia .btn-primary { color:#fff; background:#c9050f; border:1px solid #c9050f; }
+.encyclopedia .btn-primary:hover { background:#a6040d; }
+.encyclopedia .enc-layout { flex:1; min-height:0; display:grid; grid-template-columns:290px minmax(0,1fr); }
+.encyclopedia .enc-list { overflow:auto; padding:0 16px 16px; border-right:1px solid #42556c; }
+.encyclopedia .enc-row { display:block; text-align:left; width:100%; padding:14px 10px; color:#e7edf5; border:0; border-bottom:1px solid #42556c; background:transparent; cursor:pointer; }
+.encyclopedia .enc-row:hover,.encyclopedia .enc-row[aria-current=true] { background:#163050; }
+.encyclopedia .enc-row[aria-current=true] { box-shadow:inset 3px 0 #e50611; }
+.encyclopedia .enc-row strong { display:block; font-size:15px; margin-bottom:6px; }
+.encyclopedia .enc-row small { color:#b1bdcc; font-size:12px; }
+.encyclopedia .enc-reading { background:#f6f5f1; color:#163050; padding:24px 32px; overflow:auto; min-width:0; }
+.encyclopedia .enc-reading h3 { font:26px Georgia,"Noto Serif SC",serif; margin:0 0 12px; color:#163050; }
+.encyclopedia .enc-reading h4 { margin:24px 0 10px; font-size:16px; }
+.encyclopedia .enc-reading .btn-ghost { color:#163050; background:transparent; border:1px solid #566475; }
+.encyclopedia .enc-reading .btn-ghost:hover:not(:disabled) { background:#e6eaf0; color:#163050; }
+.encyclopedia .enc-meta { color:#566475; font-size:13px; margin:6px 0 20px; }
+.encyclopedia .enc-body { white-space:pre-wrap; overflow-wrap:anywhere; font:16px/1.9 "Noto Serif SC",Georgia,serif; max-width:75ch; }
+.encyclopedia .enc-tabs { display:flex; gap:8px; border-bottom:1px solid #b3bdc8; padding:14px 0; margin-bottom:20px; flex-wrap:wrap; }
+.encyclopedia .enc-tabs button[aria-pressed=true],.encyclopedia .enc-tabs button[aria-pressed=true]:hover:not(:disabled) { background:#163050; color:#fff; }
+.encyclopedia .enc-actions { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+.encyclopedia .enc-reading details { border-bottom:1px solid #b3bdc8; padding:14px 0; }
+.encyclopedia .enc-reading summary { cursor:pointer; font-weight:600; }
+.encyclopedia .enc-reading label { display:block; margin:16px 0 8px; font-size:14px; }
+.encyclopedia .enc-reading input,.encyclopedia .enc-reading select,.encyclopedia .enc-reading textarea { background:#fff; color:#163050; border:1px solid #566475; width:100%; padding:10px; border-radius:4px; font:16px/1.5 system-ui,sans-serif; }
+.encyclopedia .enc-reading input[type=checkbox] { width:auto; }
+.encyclopedia textarea { min-height:260px; resize:vertical; }
+.encyclopedia .enc-status { padding:10px 24px; margin:0; font-size:14px; color:#e7edf5; }
+.encyclopedia .enc-error { background:#5a2630; color:#fff; }
+.encyclopedia .enc-empty { padding:36px 0; line-height:1.8; }
+.encyclopedia .enc-link { display:block; border:0; text-align:left; padding:10px 0; background:transparent; color:#163050; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.encyclopedia .enc-citation { border:0; padding:2px; background:transparent; color:#a6040d; font:13px system-ui,sans-serif; cursor:pointer; text-decoration:underline; }
+.encyclopedia :focus-visible { outline:2px solid #e50611; outline-offset:3px; }
+.encyclopedia button:disabled { opacity:.55; cursor:wait; }
+.encyclopedia ::selection { background:#163050; color:#fff; }
+.encyclopedia input,.encyclopedia textarea { caret-color:#e50611; }
+.encyclopedia .enc-back { display:none; }
+@media(max-width:800px) {
+ .encyclopedia { width:100vw; max-width:100vw; height:100dvh; max-height:100dvh; border-radius:0 !important; }
+ .encyclopedia header,.encyclopedia .enc-tools { padding:12px 16px; }
+ .encyclopedia .enc-layout { grid-template-columns:1fr; }
+ .encyclopedia .enc-reading { padding:20px; }
+ .encyclopedia .enc-layout.has-detail .enc-list { display:none; }
+ .encyclopedia .enc-layout:not(.has-detail) .enc-reading { display:none; }
+ .encyclopedia .enc-back { display:inline-flex; margin-bottom:16px; }
+}

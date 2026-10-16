@@ -1,0 +1,4 @@
+# cmd.exe launchers require Windows line endings.
+*.cmd text eol=crlf
+
+*.pdf binary

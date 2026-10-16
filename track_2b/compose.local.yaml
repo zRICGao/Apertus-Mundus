@@ -1,0 +1,66 @@
+services:
+  app:
+    environment:
+      LLM_NAME: ${LOCAL_LLM_NAME:-swiss-ai/Apertus-v1.5-8B}
+      LLM_BASE_URL: http://llm:8000/v1
+      LLM_API_KEY: ""
+      DECISION_PROVIDER: apertus
+    depends_on:
+      llm:
+        condition: service_healthy
+  llm:
+    profiles: [local]
+    image: ${LOCAL_LLM_IMAGE:-ghcr.io/swiss-ai/vllm_apertus_1.5_release@sha256:d85533f251c8272218ae2e519510836376e5a335b44f2204f193018e37753bc6}
+    init: true
+    entrypoint: ["vllm", "serve"]
+    command:
+      - ${LOCAL_LLM_NAME:-swiss-ai/Apertus-v1.5-8B}
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --chat-template-content-format
+      - string
+      - --default-chat-template-kwargs
+      - '{"enable_thinking":false}'
+      - --max-model-len
+      - ${LOCAL_MAX_MODEL_LEN:-16384}
+      - --gpu-memory-utilization
+      - ${LOCAL_GPU_MEMORY_UTILIZATION:-0.85}
+      - --max-num-seqs
+      - "1"
+    environment:
+      HF_HOME: /models
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    volumes:
+      - model-cache:/models
+    shm_size: 4gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 600s
+      retries: 40
+  prepare-model:
+    profiles: [prepare]
+    image: ${LOCAL_LLM_IMAGE:-ghcr.io/swiss-ai/vllm_apertus_1.5_release@sha256:d85533f251c8272218ae2e519510836376e5a335b44f2204f193018e37753bc6}
+    entrypoint: ["python", "-c"]
+    command:
+      - "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['MODEL_ID'], revision=os.environ['MODEL_REVISION'])"
+    environment:
+      HF_HOME: /models
+      HF_TOKEN: ${HF_TOKEN:-}
+      MODEL_ID: ${LOCAL_LLM_NAME:-swiss-ai/Apertus-v1.5-8B}
+      MODEL_REVISION: ${LOCAL_MODEL_REVISION:-ef4bbc54d6fe658bc782280ff9f3b53a10a9758f}
+    volumes:
+      - model-cache:/models
+volumes:
+  model-cache:
