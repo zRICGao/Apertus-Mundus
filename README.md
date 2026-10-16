@@ -58,6 +58,89 @@ with the character of a narrative atlas.
   timelines, maps, memories, knowledge and existing embeddings. Generate incremental
   narrative reports from recorded scenes and download them as Markdown.
 
+## Core Architecture (`src/`)
+
+The application code lives in `track_2b/src/`. The frontend and Python modules below
+form one narrative workbench: `main.py` assembles the FastAPI application, AI modules
+prepare possible outcomes, and the world engine commits the chosen outcome. These
+are logical responsibilities within the application, not separate backend services.
+
+```mermaid
+flowchart TD
+    UI["index.html, phone.html, connect.html and frontend modules"]
+    MAIN["main.py: application entry point and router wiring"]
+    AI["agent.py + agent_operations.py: context and generation"]
+    PREP["selected_branches.py + npc_review.py: candidate preparation"]
+    COMMIT["scene_service.py + engine.py: validated scene commits"]
+    WORLD["world.py: stable identities, typed state and events"]
+    DOMAIN["entity_service.py, teams.py, map.py, spatial.py and trigger.py"]
+    MEMORY["memory_service.py: working and long-term memory"]
+    KNOWLEDGE["knowledge.py, rag.py and reranking.py: scoped retrieval"]
+    WIKI["wiki_compiler.py + wiki_jobs.py: derived Encyclopedia pages"]
+    PROVIDERS["providers.py: model calls and typed decision fallback"]
+    DB["database.py: shared SQLite connections and transactions"]
+
+    UI -->|"Commands and streamed responses"| MAIN
+    MAIN --> AI
+    MAIN --> COMMIT
+    MAIN --> DOMAIN
+    AI -->|"Prepare selected candidate"| PREP
+    AI -->|"Build context"| MEMORY
+    AI -->|"Retrieve permitted knowledge"| KNOWLEDGE
+    AI --> PROVIDERS
+    PREP --> PROVIDERS
+    COMMIT --> WORLD
+    COMMIT --> DOMAIN
+    COMMIT --> MEMORY
+    COMMIT -->|"Enqueue knowledge work"| WIKI
+    WIKI --> KNOWLEDGE
+    WIKI --> PROVIDERS
+    WORLD --> DB
+    DOMAIN --> DB
+    MEMORY --> DB
+    KNOWLEDGE --> DB
+```
+
+### Module Responsibilities
+
+| Area | Main source modules | Responsibility |
+| --- | --- | --- |
+| Browser and API boundary | `index.html`, `phone.html`, `connect.html`, `frontend_api.js`, `frontend_sync.js` | GM interaction, NPC conversations, device access, HTTP requests, SSE consumption and revision-based refresh. |
+| Application assembly | `main.py`, `config_api.py`, `device_link.py` | Initialize the world database, configure modules, mount routers, expose settings and handle device pairing and live player updates. |
+| AI orchestration | `agent.py`, `agent_operations.py`, `inference_contracts.py`, `model_output.py` | Gather authoritative context, route actions, constrain candidate summaries and stream rendered prose. |
+| Candidate preparation | `selected_branches.py`, `npc_review.py`, `map_review.py` | Prepare only the selected draft, resolve NPC identities and additions, and review proposed map changes before expansion. |
+| Operation coordination | `summary_operations.py`, `expansion_operations.py` | Track request keys, cache completed results and lease in-flight work to avoid concurrent duplicate generation. |
+| World commits | `scene_service.py`, `engine.py`, `world.py`, `database.py` | Validate branch effects and world versions, apply changes transactionally, maintain stable entity IDs and record confirmed events. |
+| Domain rules | `entity_service.py`, `teams.py`, `map.py`, `spatial.py`, `map_effects.py`, `trigger.py` | Manage entities, party timelines, room topology, movement and trigger conditions and effects. |
+| Memory and retrieval | `memory_service.py`, `knowledge.py`, `rag.py`, `reranking.py` | Maintain working and archived memories, enforce knowledge visibility, and retrieve and rerank relevant context. |
+| Encyclopedia | `encyclopedia_api.py`, `wiki_compiler.py`, `wiki_jobs.py`, `wiki_service.py` | Edit source material, track revisions and provenance, and compile derived pages through background jobs. |
+| Providers and saves | `providers.py`, `decision_contracts.py`, `runtime_config.py`, `campaigns.py` | Configure model access, validate typed decision formats, apply provider fallback, and save or restore world snapshots. |
+
+`entity.py`, `timeline.py` and `memory.py` are compatibility entry points that
+re-export the implementations in `entity_service.py`, `teams.py` and
+`memory_service.py` respectively.
+
+### Main Simulation Path
+
+1. **Generate candidates:** `/api/ai/dynamic-options/stream` enters through
+   `agent.py`. `agent_operations.py` builds scene, party, entity, spatial and scoped
+   knowledge context, calls the model and validates 2–4 summaries. Candidate nodes
+   and pending effects are saved as drafts; their proposed world effects are not
+   applied.
+2. **Prepare the selection:** `/api/ai/prepare-branch` delegates to
+   `selected_branches.py`. NPC and spatial review resolve the chosen draft against
+   the current world, with GM input when required.
+3. **Expand the narrative:** `/api/ai/expand-branch/stream` streams prose through
+   `agent_operations.py` and `model_output.py`. `expansion_operations.py` coordinates
+   the request. The result is saved on the draft without committing world events,
+   memories or trigger effects.
+4. **Commit the outcome:** `/api/game/commit-scene` enters `scene_service.py` and
+   delegates generated branches to `engine.py`. A transaction applies validated
+   effects through the world and domain modules, records the event and updates
+   memories and scene history. Request keys and world-state checks prevent repeated
+   or stale application; memory maintenance and Encyclopedia compilation follow
+   confirmed changes.
+
 ## ✨ How to Use
 
 ### 1. Load a Campaign
