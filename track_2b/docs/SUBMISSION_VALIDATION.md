@@ -6,6 +6,32 @@ this record. The submission remains under `track_2b/`; the root Makefile forward
 
 ## Verified
 
+### Default local Apertus startup
+
+- Root `make run` now selects the local Apertus v1.5 8B GPU stack, with CPU helpers.
+  A one-shot preparation service reuses host `hf auth login` credentials or `HF_TOKEN`,
+  downloads a pinned snapshot and completes before vLLM starts. The app waits for
+  the generator and all helpers to become healthy. No inference key or `.env.docker`
+  is needed. `make run-remote` retains optional external endpoint configuration.
+- Nine deployment tests pass, including real Compose CLI configuration checks for
+  local/remote modes and CPU/GPU helpers, Linux/Windows/custom login directories,
+  credential isolation, interrupted downloads, revision changes and cached restarts.
+  Downloads are mocked in these tests; no model weights are fetched.
+- All 31 included Python regressions pass. The exported package validates all 114
+  manifest hashes and includes the downloader and deployment tests. Its isolated
+  mocked-inference smoke flow passes generation, selected review, expansion,
+  idempotent commit, export/load and fresh-process recovery. Windows sandbox
+  loopback restrictions blocked TestClient startup; that smoke check passed when
+  rerun outside the sandbox. This does not exercise Docker or real models.
+- The README, deployment guide, generated submission instructions and report now
+  describe local default startup. Changed report pages were rendered and inspected;
+  the report remains six body pages plus one reference page.
+- Docker Desktop's Linux engine remains unavailable on this machine. A fresh image
+  build, gated model download and full local GPU inference have not been validated.
+  This change requires compatible NVIDIA Docker support and sufficient GPU memory;
+  the existing 8 GB GPU has not passed that validation. Historical 70B quality and
+  latency results do not establish local 8B performance.
+
 ### Limmat example and blank starter
 
 - Added Limmat — The Forbidden River and Blank Campaign under `data/scenarios/`.

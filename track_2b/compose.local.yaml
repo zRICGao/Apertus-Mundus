@@ -4,7 +4,6 @@ services:
       LLM_NAME: ${LOCAL_LLM_NAME:-swiss-ai/Apertus-v1.5-8B}
       LLM_BASE_URL: http://llm:8000/v1
       LLM_API_KEY: ""
-      DECISION_PROVIDER: apertus
     depends_on:
       llm:
         condition: service_healthy
@@ -13,8 +12,13 @@ services:
     image: ${LOCAL_LLM_IMAGE:-ghcr.io/swiss-ai/vllm_apertus_1.5_release@sha256:d85533f251c8272218ae2e519510836376e5a335b44f2204f193018e37753bc6}
     init: true
     entrypoint: ["vllm", "serve"]
+    depends_on:
+      prepare-model:
+        condition: service_completed_successfully
     command:
       - ${LOCAL_LLM_NAME:-swiss-ai/Apertus-v1.5-8B}
+      - --revision
+      - ${LOCAL_MODEL_REVISION:-ef4bbc54d6fe658bc782280ff9f3b53a10a9758f}
       - --host
       - "0.0.0.0"
       - --port
@@ -34,7 +38,7 @@ services:
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
     volumes:
-      - model-cache:/models
+      - model-cache:/models:ro
     shm_size: 4gb
     deploy:
       resources:
@@ -50,17 +54,27 @@ services:
       start_period: 600s
       retries: 40
   prepare-model:
-    profiles: [prepare]
+    profiles: [local, prepare]
     image: ${LOCAL_LLM_IMAGE:-ghcr.io/swiss-ai/vllm_apertus_1.5_release@sha256:d85533f251c8272218ae2e519510836376e5a335b44f2204f193018e37753bc6}
-    entrypoint: ["python", "-c"]
+    entrypoint: ["python"]
     command:
-      - "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['MODEL_ID'], revision=os.environ['MODEL_REVISION'])"
+      - /opt/prepare_apertus.py
     environment:
       HF_HOME: /models
       HF_TOKEN: ${HF_TOKEN:-}
+      HOST_HF_TOKEN_FILE: /host-huggingface/token
       MODEL_ID: ${LOCAL_LLM_NAME:-swiss-ai/Apertus-v1.5-8B}
       MODEL_REVISION: ${LOCAL_MODEL_REVISION:-ef4bbc54d6fe658bc782280ff9f3b53a10a9758f}
     volumes:
       - model-cache:/models
+      - type: bind
+        source: ./helpers/prepare_apertus.py
+        target: /opt/prepare_apertus.py
+        read_only: true
+      # Reuse hf auth login without copying the host credential into model-cache.
+      - type: bind
+        source: ${HOST_HF_HOME:-${HF_HOME:-${XDG_CACHE_HOME:-${USERPROFILE:-${HOME:-.}}/.cache}/huggingface}}
+        target: /host-huggingface
+        read_only: true
 volumes:
   model-cache:

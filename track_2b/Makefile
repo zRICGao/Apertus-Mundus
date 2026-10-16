@@ -3,15 +3,18 @@ COMPOSE = docker compose --env-file "$(ENV_FILE)" -f compose.yaml
 LOCAL = $(COMPOSE) -f compose.local.yaml --profile local
 PYTHON ?= python
 
-.PHONY: run run-gpu run-local prepare-model stop logs smoke smoke-live package
-run:
-	$(COMPOSE) up --build --remove-orphans app
+.PHONY: run run-gpu run-local run-remote run-remote-gpu prepare-model stop logs smoke smoke-live package
+run run-local:
+	$(LOCAL) up --build --remove-orphans app
 
 run-gpu:
-	$(COMPOSE) -f compose.helpers-gpu.yaml up --build --remove-orphans app
+	$(LOCAL) -f compose.helpers-gpu.yaml up --build --remove-orphans app
 
-run-local:
-	$(LOCAL) up --build --remove-orphans app
+run-remote:
+	$(COMPOSE) up --build --remove-orphans app
+
+run-remote-gpu:
+	$(COMPOSE) -f compose.helpers-gpu.yaml up --build --remove-orphans app
 
 prepare-model:
 	$(LOCAL) --profile prepare run --rm --no-deps prepare-model

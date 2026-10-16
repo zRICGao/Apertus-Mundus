@@ -219,17 +219,27 @@ by default). These Markdown files are stored separately from game saves.
 
 ## Quick start
 
-Requirements: Docker Engine 28+, Docker Compose 2.24+ and GNU Make.
+Requirements: Docker Engine 28+, Docker Compose 2.24+, GNU Make, NVIDIA Container
+Toolkit and a compatible NVIDIA GPU with sufficient VRAM for Apertus v1.5 8B.
+**Hugging Face access must already be granted** to the account downloading
+[Apertus v1.5 8B](https://huggingface.co/swiss-ai/Apertus-v1.5-8B). Accept the model's
+access conditions on that page first, then run `hf auth login` on the host using
+a read token from the same account. Skip CLI login if already authenticated.
+Creating an account or logging into the browser alone does not grant model access
+or provide Docker download credentials. Never commit the token to GitHub.
 
 ```sh
-cp track_2b/.env.docker.example track_2b/.env.docker
-# Set LLM_NAME, LLM_BASE_URL and LLM_API_KEY for your Apertus endpoint.
 make run
 ```
 
-Open http://localhost:8000/index.html. Initial builds download approximately 12.72 GB
-of supporting model weights plus dependencies. Plan for 32 GB Docker RAM and at
-least 40 GB free disk as a starting point; these are not measured minimums.
+Open http://localhost:8000/index.html once startup completes. No `.env.docker` or
+inference API key is required. The default command prepares pinned Apertus weights,
+starts its local GPU server and the three CPU helpers, and waits for their health
+checks before starting the application. Downloads reuse the host Hugging Face login;
+later starts reuse the model cache. Initial builds download Apertus weights plus
+approximately 12.72 GB of helper weights and dependencies. The helpers alone have
+32 GB Docker RAM and 40 GB disk planning allowances; add capacity for Apertus and
+its serving image. Hardware minima and full-stack latency have not been measured.
 `make stop` preserves the saved world. `make smoke` checks isolated mocked inference;
 `make smoke-live` exercises the configured real services.
 
@@ -239,12 +249,14 @@ The root Makefile forwards commands to that directory.
 
 ## Architecture and scope
 
-The target architecture is self-managed on-premise. `make prepare-model` and
-`make run-local` provide a local Apertus v1.5 8B GPU deployment, subject to model
-access approval and sufficient NVIDIA hardware. The default `make run` connects
-to your Apertus endpoint. Local supporting models provide embeddings, reranking
-and typed decisions; their roles are documented in the report. Build preparation
-requires network access. Fully disconnected operation has not been validated.
+The default architecture is self-managed on-premise: `make run` (also available
+as `make run-local`) serves Apertus v1.5 8B locally. `make prepare-model` optionally
+prepares weights in advance. `make run-remote` retains external Apertus endpoint
+support through `LLM_NAME`, `LLM_BASE_URL` and `LLM_API_KEY`, supplied by the operator.
+Local supporting models provide embeddings, reranking and typed decisions. Build
+preparation requires network access. This is an on-premise deployment, not a
+validated air-gapped release: the frontend still requests Google Fonts, CDN icons
+and optional online background music. Fully disconnected operation has not been validated.
 
 The interface, bundled fictional scenarios and project documentation are in English.
 Data includes the original CC0 lighthouse demo, an adaptation of the supplied Limmat

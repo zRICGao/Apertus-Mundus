@@ -88,13 +88,14 @@ def package(destination):
     (destination / 'README.md').write_text(
         '# Apertus Mundus — Track 2b\n\n'
         'Submission layout follows https://github.com/HackApertus/project-template .\n'
-        'Application root: `track_2b/`. Configure `track_2b/.env.docker` using its example, '
-        'then run `make run` from either this directory or `track_2b/`. '
+        'Application root: `track_2b/`. With NVIDIA Docker support, Hugging Face Apertus model access '
+        'already granted and host `hf auth login` using that account, run `make run` from either this directory '
+        'or `track_2b/`. Model preparation is automatic; no inference API key is needed. '
         'See [run instructions](track_2b/docs/DOCKER.md) and [technical report](track_2b/technical_report.md).\n',
         encoding='utf-8')
     (destination / 'Makefile').write_text(
-        '.PHONY: run run-gpu run-local prepare-model stop logs smoke smoke-live package\n'
-        'run run-gpu run-local prepare-model stop logs smoke smoke-live package:\n\t$(MAKE) -C track_2b $@\n', encoding='utf-8')
+        '.PHONY: run run-gpu run-local run-remote run-remote-gpu prepare-model stop logs smoke smoke-live package\n'
+        'run run-gpu run-local run-remote run-remote-gpu prepare-model stop logs smoke smoke-live package:\n\t$(MAKE) -C track_2b $@\n', encoding='utf-8')
     (destination / '.gitignore').write_text(
         '.env\n.env.docker\n*.db\n*.db-wal\n*.db-shm\n__pycache__/\n*.pyc\ndist/\n', encoding='utf-8')
     manifest = {}

@@ -5,7 +5,7 @@
 
 ### 1. Summary
 
-Apertus Mundus is a persistent narrative simulation workbench for a game master (GM). It uses Apertus 70B to propose possible outcomes, while a Python engine owns entities, state, permissions and confirmed history. The central engineering question is how to sustain an evolving world without turning every interaction into a replay of the entire campaign.
+Apertus Mundus is a persistent narrative simulation workbench for a game master (GM). It uses Apertus to propose possible outcomes, while a Python engine owns entities, state, permissions and confirmed history. The central engineering question is how to sustain an evolving world without turning every interaction into a replay of the entire campaign.
 
 Three connected mechanisms address this problem: short candidate summaries followed by expansion of only the selected branch; a source-linked Wiki and retrieval pipeline that assembles evidence for each request; and three layers of memory backed by deterministic state transitions. Generated possibilities remain drafts until a commit succeeds. Streaming provides incremental narrative feedback, while complete-response validation protects persistent state.
 
@@ -160,17 +160,17 @@ The 80-fragment pool covered **32/33** facts. G28's missing cross-source evidenc
 
 | Component | Submitted configuration | Role |
 | --- | --- | --- |
-| Narrative core | swiss-ai/Apertus-v1.5-70B | Summaries, selected prose, Wiki and fallback; used in latency traces |
+| Narrative core | swiss-ai/Apertus-v1.5-8B | Local summaries, selected prose, Wiki and fallback; GPU required |
 | Embedding | BAAI/bge-m3 | Local 1,024-dimensional dense retrieval; MIT |
 | Reranker | mixedbread-ai/mxbai-rerank-base-v2 | Local ordering; Apache-2.0; different from Table 1 |
 | Decisions | jaredpalmer/kev-4b on Qwen/Qwen3.5-4B-Base | Local typed decisions, Apertus fallback; Apache-2.0 |
-| Optional local generator | swiss-ai/Apertus-v1.5-8B | Separate GPU profile, not the measured 70B endpoint |
+| Optional remote generator | swiss-ai/Apertus-v1.5-70B | External endpoint used in historical latency traces |
 
 Apertus is the generation foundation. Helpers have narrower retrieval and decision roles. Kev is a separate open model, not hosted Jev weights. Auxiliary revisions are pinned in `helpers/models.json`; Kev source is fixed to `1f04cfa28e6a708485b28a9585010b9e436b776e`. Model licences remain upstream. [1-4,12]
 
-From the repository root, copy `track_2b/.env.docker.example` to `track_2b/.env.docker`, set `LLM_NAME`, `LLM_BASE_URL` and `LLM_API_KEY`, then run `make run`. Open `http://localhost:8000/index.html`. Compose starts the workbench and three local helpers, publishing only the workbench's loopback port. A volume persists SQLite and saves; `make stop` preserves it. [12]
+With compatible NVIDIA Docker support, accepted model access conditions and host `hf auth login`, run `make run` from the repository root. It downloads pinned Apertus 8B weights using the host login, starts local inference and three helpers, then starts the workbench after health checks pass. No inference API key or configuration file is needed. Open `http://localhost:8000/index.html`. Volumes preserve weights, SQLite and saves across `make stop`. [12]
 
-`make smoke` checks the isolated application chain with mocked inference; `make smoke-live` exercises real services. `make prepare-model` and `make run-local` provide a separate local Apertus profile after model access is arranged. Initial builds require network access. Fully disconnected operation and concurrent real-model execution on target hardware remain unvalidated. Auxiliary weights total about **12.72 GB**; 32 GB Docker RAM and 40 GB disk are planning allowances, not measured minima. [12]
+`make smoke` checks mocked inference; `make smoke-live` exercises real services. `make run-remote` retains external `LLM_*` configuration. Initial builds and downloads require network access; completed weights are reused offline. Fully disconnected operation and target-hardware inference remain unvalidated. Auxiliary weights total **12.72 GB**; their 32 GB RAM / 40 GB disk allowances exclude Apertus weights and its server image. Historical 70B metrics do not measure local 8B quality. [12]
 
 ### Data and reproduction
 

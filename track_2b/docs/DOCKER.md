@@ -1,32 +1,53 @@
 # Docker deployment and submission
 
-`make run` starts **Apertus Mundus, BGE-M3, MXBAI Rerank Base v2 and Kev-4B**.
-Apertus uses the OpenAI-compatible endpoint supplied by the judges. The three helper
-models load weights from their images; no SiliconFlow, Mixedbread, TypeSafe or
-Hugging Face API keys are required for those services.
+`make run` automatically prepares **Apertus v1.5 8B**, starts its local GPU server,
+then starts **Apertus Mundus, BGE-M3, MXBAI Rerank Base v2 and Kev-4B**. No inference
+API key, `.env.docker` file or manual endpoint configuration is required. A host
+Hugging Face login is needed for the initial gated weight download.
 
 ## Start the application
 
-Requirements: Docker Engine 28+, Docker Compose 2.24+ and GNU Make. The host does
-not need Python. Inference uses the CPU by default. Allow 32 GB of Docker RAM and
-40 GB of free disk as starting capacity estimates. Minimum hardware requirements
-and end-to-end latency still need measurement on the evaluation machine.
+Requirements: Docker Engine 28+, Docker Compose 2.24+, GNU Make, NVIDIA Container
+Toolkit and compatible NVIDIA drivers / GPU with sufficient VRAM for Apertus
+v1.5 8B. Only the helpers use the CPU by default. The helpers' 32 GB Docker RAM
+and 40 GB disk estimates exclude Apertus weights and its serving image. Allow
+additional RAM, disk and GPU capacity for the generator; full-stack minimum
+requirements and end-to-end latency still need measurement on the evaluation machine.
 
-Run from `track_2b/`:
+Before the first run, accept the access conditions at
+[the Apertus model page](https://huggingface.co/swiss-ai/Apertus-v1.5-8B) and run
+`hf auth login` on the host with a read token from the same account. **That account
+must already have been granted access to the Apertus model on Hugging Face.**
+If already logged in with the Hugging Face CLI, skip this step. Browser login
+alone does not provide download credentials to Docker. The application itself
+does not require host Python.
+
+Run from the repository root or `track_2b/`:
 
 ```sh
-cp .env.docker.example .env.docker
-# Fill in the supplied LLM_NAME, LLM_BASE_URL and LLM_API_KEY in .env.docker.
 make run
 ```
 
-In PowerShell, use `Copy-Item .env.docker.example .env.docker`. You may also provide
-`LLM_NAME`, `LLM_BASE_URL` and `LLM_API_KEY` through the process environment.
-An Apertus endpoint without authentication may use an explicitly empty `LLM_API_KEY`.
+The one-shot download container reads the host login directory through a read-only
+mount. It resolves `HOST_HF_HOME`, then `HF_HOME`, then `$XDG_CACHE_HOME/huggingface`,
+then `$HOME/.cache/huggingface` (Windows: `%USERPROFILE%/.cache/huggingface`). If your
+login uses a custom `HF_TOKEN_PATH`, set `HOST_HF_HOME` to its parent directory when
+the file is named `token`, or export `HF_TOKEN`. An exported `HF_TOKEN` overrides
+the file. This is a download credential, not an inference API key. It is provided
+only to the preparation container, never to the app or inference server, and is
+not copied into the model-cache volume or source repository.
 
-Open <http://localhost:8000/index.html>. The initial build downloads dependencies
-and public model weights; later builds reuse Docker layers. Startup waits for all
-three helper models. `make stop` stops containers and preserves saves; `make logs`
+Preparation downloads the complete pinned snapshot into `model-cache`. Only a
+successful full download writes the readiness marker, so an interrupted first
+download is retried on the next `make run`. Later starts use the completed cache
+without a Hub request or token. The vLLM server loads the same revision offline
+from a read-only mount. Compose waits for preparation to finish successfully,
+then for the generator and all three helpers to become healthy, before starting
+the app. `make run-local` is an alias; a separate `make prepare-model` is optional.
+
+Open <http://localhost:8000/index.html> once startup completes. The initial build
+and preparation download dependencies and model weights; later runs reuse the
+images and model cache. `make stop` stops containers and preserves saves; `make logs`
 shows logs. Set `APP_PORT=8001` before `make run` if the default port is occupied.
 
 `.env.docker` is excluded from Git and the image build context. Helper services are
@@ -40,17 +61,16 @@ This mode provides a local workbench. Phone pairing uses the desktop launch mode
 | embedding | `BAAI/bge-m3` | 1024-dimensional dense embeddings |
 | reranker | `mixedbread-ai/mxbai-rerank-base-v2` | Rerank candidate passages |
 | kev | `jaredpalmer/kev-4b` + `Qwen/Qwen3.5-4B-Base` | System One structured decisions |
-| app | Apertus specified by `LLM_NAME` | Narrative, summaries, expansion, Wiki and decision fallback |
+| llm | `swiss-ai/Apertus-v1.5-8B` | Local narrative, summaries, expansion, Wiki and decision fallback |
 
 Kev is an independent open-source model, distinct from the Jev weights hosted by
 TypeSafe. The default `DECISION_PROVIDER=kev` falls back directly to the main
 Apertus model on uncertainty or service errors, without requiring a second Apertus
 8B endpoint. Existing `apertus`, `apertus-8b` and `jev` decision modes remain supported.
 
-With sufficient NVIDIA VRAM, `make run-gpu` builds CUDA images for all three helper
-services while still connecting to remote Apertus. `make run-local` additionally
-runs Apertus locally. Shared VRAM must hold all models and inference caches; the
-current 8 GB GPU has not passed validation for this configuration. The existing
+With sufficient NVIDIA VRAM, `make run-gpu` also builds CUDA images for all three
+helper services, alongside local Apertus. Shared VRAM must hold all models and
+inference caches; the current 8 GB GPU has not passed validation for this configuration. The existing
 configuration fields `JEV_URL` and `JEV_MODEL` also configure Kev.
 
 Local Base v2 differs from the previously hosted `mxbai-rerank-v3.1-listwise` model;
@@ -70,15 +90,17 @@ The pinned public Hub file metadata checked on 16 October 2026 totals
 **12,716,349,435 bytes**, approximately **12.72 GB / 11.84 GiB**: BGE-M3 2.27 GB,
 Base v2 0.99 GB, Kev adapter and heads 0.135 GB, and Qwen base 9.32 GB. Downloads
 also include tokenizers and configuration; images include PyTorch and other
-libraries. A 15-20 GB image estimate is approximate; measure the actual build and
-avoid counting shared layers twice.
+libraries. A 15-20 GB helper image estimate is approximate; measure the actual build
+and avoid counting shared layers twice. These totals exclude the local Apertus
+weights, its official vLLM image and runtime caches.
 
 ```sh
 python helpers/model_inventory.py
 docker image ls
 ```
 
-Submit the source repository URL. Docker downloads weights during the build;
+Submit the source repository URL. Docker downloads helper weights during the build
+and Apertus during automatic preparation;
 weights belong outside Git and `data/`. Bundled data includes the original
 fictional lighthouse demo, an English Limmat adventure and a blank starter,
 and stays well below 100 MB.
@@ -95,37 +117,42 @@ or the active world. Existing modified examples are preserved.
 Configuration precedence is process environment > persisted settings > project
 `.env` > defaults. Within one layer, `LLM_*` takes precedence over the corresponding
 `APERTUS_*`; an empty key is valid. Explicit Compose values override UI settings
-on restart, so update `.env.docker` to change deployed connections. Persisted
-settings live at `/app/runtime/settings.env`.
+on restart. Local mode fixes the generator to `http://llm:8000/v1`; use `LOCAL_LLM_*`
+overrides for that service. Remote mode takes its endpoint from `.env.docker` or
+the process environment. Persisted settings live at `/app/runtime/settings.env`.
 
 The initial demo builds a vector index through local BGE-M3. After changing the
 embedding service for existing sources, use `POST /api/rag/reindex` rather than
 mixing vectors produced by different services.
 
-## Optional local Apertus
+## Optional external Apertus endpoint
 
 ```sh
-# Accept the Apertus v1.5 Hugging Face access conditions and set HF_TOKEN locally.
-make prepare-model
-make run-local
+cp track_2b/.env.docker.example track_2b/.env.docker
+# Fill in LLM_NAME, LLM_BASE_URL and LLM_API_KEY for your external service.
+make run-remote
 ```
 
-This adds an official Apertus v1.5 8B GPU container; helpers still use the CPU.
-It requires NVIDIA Container Toolkit, matching drivers and sufficient VRAM.
-Defaults are a 16K context, one concurrent request and thinking disabled. The
-current 8 GB GPU has not completed validation; 8 GB operation is not guaranteed.
+Run these commands from the repository root. In PowerShell, use `Copy-Item` in
+place of `cp`. You may instead export the three `LLM_*` values. An unauthenticated
+endpoint may use an explicitly empty `LLM_API_KEY`. This mode starts the app and
+CPU helpers without a local Apertus server, NVIDIA runtime or Hugging Face login.
+`make run-remote-gpu` enables GPU helpers while retaining the external generator.
 
-`HF_TOKEN` is passed only to the download container. The server reads the
-`model-cache` volume. Available settings include `LOCAL_LLM_IMAGE`, `LOCAL_LLM_NAME`,
-`LOCAL_MAX_MODEL_LEN` and `LOCAL_GPU_MEMORY_UTILIZATION`. Model revisions and the
-official amd64 image digest are pinned. Fully disconnected operation still needs
-verification of browser assets and network egress.
+For default local mode, available overrides include `LOCAL_LLM_IMAGE`,
+`LOCAL_LLM_NAME`, `LOCAL_MODEL_REVISION`, `LOCAL_MAX_MODEL_LEN` and
+`LOCAL_GPU_MEMORY_UTILIZATION`. Defaults are a 16K context, one concurrent request
+and thinking disabled. The model revision and official amd64 image digest are
+pinned. The current 8 GB GPU has not completed validation; 8 GB operation is not
+guaranteed. The frontend still requests Google Fonts, CDN icons and optional
+online background music. This is an on-premise deployment; fully disconnected
+operation still needs local browser assets and verification of network egress.
 
 ## Validation
 
 ```sh
 make smoke       # Temporary world and mocked inference; no real models.
-make smoke-live  # Temporary world and real services; may consume Apertus quota.
+make smoke-live  # Temporary world and real services; remote mode may consume quota.
 ```
 
 Both modes use an isolated world. Live mode first checks embedding, reranking and
@@ -138,7 +165,8 @@ only the application and database, without invoking models.
 On a development machine with Python, run `make package`. This creates
 `dist/submission-<UTC timestamp>/` with a root forwarding Makefile and
 `track_2b/{src,data,docs,Makefile,technical_report.md}`. Run `make run` from either
-the generated root or its `track_2b/` directory; place `.env.docker` in `track_2b/`.
+the generated root or its `track_2b/` directory. No configuration file is required
+for default local mode; optional `.env.docker` overrides belong in `track_2b/`.
 Packaging excludes private campaigns, databases, credentials and model weights,
 preserves existing output directories and generates a SHA-256 manifest.
 

@@ -124,7 +124,7 @@ class Diagram(Flowable):
             xs = [0, 132, 264, 396]
             box(xs[0], 96, bw, 47, 'Player action', 'Browser / FastAPI')
             box(xs[1], 96, bw, 47, 'Context builder', 'State + memory + evidence')
-            box(xs[2], 96, bw, 47, 'Apertus 70B', '2-4 short alternatives', True)
+            box(xs[2], 96, bw, 47, 'Apertus', '2-4 short alternatives', True)
             box(xs[3], 96, bw, 47, 'Select + expand', 'Review, then SSE')
             for a, b in zip(xs, xs[1:]):
                 arrow(a+bw, 119, b-3, 119)
