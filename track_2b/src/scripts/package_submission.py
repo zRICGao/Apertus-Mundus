@@ -70,8 +70,14 @@ def package(destination):
     if license_file.exists():
         copy(license_file, destination / 'LICENSE')
     copy(PROJECT / 'docs' / 'DOCKER.md', track / 'docs' / 'DOCKER.md')
+    for name in ('report_metrics.json', 'build_technical_report.py', 'SUBMISSION_VALIDATION.md'):
+        source = PROJECT / 'docs' / name
+        if source.is_file():
+            copy(source, track / 'docs' / name)
     # Keep packaging inputs available for a reproducible re-export.
     copy(PROJECT / 'docs' / 'SUBMISSION_README.md', track / 'docs' / 'SUBMISSION_README.md')
+    for file in sorted((PROJECT / 'tests').glob('test_*.py')):
+        copy(file, track / 'tests' / file.name)
     (destination / 'README.md').write_text(
         '# Apertus Mundus — Track 2b\n\n'
         'Submission layout follows https://github.com/HackApertus/project-template .\n'
@@ -80,8 +86,8 @@ def package(destination):
         'See [run instructions](track_2b/docs/DOCKER.md) and [technical report](track_2b/technical_report.md).\n',
         encoding='utf-8')
     (destination / 'Makefile').write_text(
-        '.PHONY: run run-gpu run-local prepare-model stop logs smoke smoke-live\n'
-        'run run-gpu run-local prepare-model stop logs smoke smoke-live:\n\t$(MAKE) -C track_2b $@\n', encoding='utf-8')
+        '.PHONY: run run-gpu run-local prepare-model stop logs smoke smoke-live package\n'
+        'run run-gpu run-local prepare-model stop logs smoke smoke-live package:\n\t$(MAKE) -C track_2b $@\n', encoding='utf-8')
     (destination / '.gitignore').write_text(
         '.env\n.env.docker\n*.db\n*.db-wal\n*.db-shm\n__pycache__/\n*.pyc\ndist/\n', encoding='utf-8')
     manifest = {}

@@ -41,6 +41,10 @@ for isolated mocked inference or `make smoke-live` for real configured services.
 The PDF report is [Apertus_Mundus_Report.pdf](Apertus_Mundus_Report.pdf).
 The demo video remains an outstanding submission deliverable.
 
+The latest [submission validation](docs/SUBMISSION_VALIDATION.md) records the checks
+and remaining gaps. Run the included summary-boundary regressions from the repository
+root with `python -m unittest discover -s track_2b/tests -v`.
+
 The `data/` folder contains only the original CC0 fictional demo. Private campaign
 data and credentials are excluded. Model licences are retained with the downloaded
 weights. The source layout follows the

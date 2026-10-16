@@ -61,7 +61,7 @@ def validate_summaries(parsed):
         raise ValueError('摘要必须包含2至4个分支')
     for branch in branches:
         if len(branch['node_content']) > 120:
-            raise ValueError('分支摘要不得超过100字符，请重新推演')
+            raise ValueError('分支摘要不得超过120字符，请重新推演')
         if len(branch['text']) > 40 or len(branch['node_name']) > 30:
             raise ValueError('分支选项或标题过长')
         # Server-owned preparation/approval fields can never come from the model.
